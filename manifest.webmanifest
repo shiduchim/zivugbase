@@ -1,0 +1,14 @@
+{
+  "name": "ZivugBase",
+  "short_name": "ZivugBase",
+  "description": "A CRM-structured shidduch relationship tracker that keeps all data on your own device.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f5f2",
+  "theme_color": "#315b78",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
