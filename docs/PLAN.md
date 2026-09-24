@@ -140,10 +140,11 @@ reader handles "name, age, city" lines, and **typing a quick list** (one person 
 **When she is suggested again**, the warning uses what's known:
 - **Same site profile number or link** → certain: *"You contacted her on ChabadMatch, Sep 2026."*
 - **Same name** (across Hebrew/English/Russian spellings) + age + city → likely.
-- **Only age + city match** → shown as *possible* — important because **ChabadMatch hides
-  names from singles** (only approved shadchanim see them), so a ChabadMatch entry may have no
-  name. When a shadchan later gives her full name, one tap confirms *"same person"* and joins
-  the records, so it's certain from then on.
+- **Only age + city match** → shown as *possible*. This only matters for the few entries
+  saved without a name. (ChabadMatch's FAQ says names are limited for singles, but the owner
+  sees the names of most people there, so most ChabadMatch entries will carry a name and get
+  the normal name-based warning.) When a name is learned later, one tap confirms
+  *"same person"* and joins the records, so it's certain from then on.
 
 **Email alerts** from sites ("You have a new match…") can be shared in like any email; the
 site is recognized from the text and set as the source automatically.
@@ -517,7 +518,7 @@ Rev 2's three questions are answered (§1, rows 5–7). Remaining:
 - Shadchan Pro — https://www.shadchanpro.com/
 - SawYouAtSinai — https://en.wikipedia.org/wiki/SawYouAtSinai
 - ZUUG — https://zuug.app/
-- ChabadMatch FAQ (singles see no names) — https://www.chabadmatch.com/about.php
+- ChabadMatch FAQ — https://www.chabadmatch.com/about.php
 - BasheretNow — https://jewishjournal.com/community/327779/new-jewish-dating-app-basheret-allows-users-to-play-matchmaker-re-define-online-dating/
 - Between Carpools — https://betweencarpools.com/organize-keep-track-of-resumes/
 - Shidduch resume sections — https://shidduchim101.com/writing-shidduch-resumes/
