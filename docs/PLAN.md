@@ -3,9 +3,11 @@
 Stage 0 of a multi-stage rebuild. **No application code has been written for this plan yet.**
 This file is the handoff between stages: every later stage starts by reading it.
 
-Revision 3 — 2026-09-24. Reference app: PeerMatch v131 (`shiduchim/match`, `main` @ `7fdfced`).
-Rev 3 adds: dating sites and platforms (§2.5), one card shared by both modes (§3.3),
+Revision 4 — 2026-09-24. Reference app: PeerMatch v131 (`shiduchim/match`, `main` @ `7fdfced`).
+Rev 3 adds: dating sites and platforms (§2.5), one card shared by both modes (§3.5),
 PeerMatch import mapping (§5.1), and the owner's answers to the rev 2 questions.
+Rev 4 adds: organizing hundreds of shadchanim — shared categories, where each contact came
+from, smart and manual lists, bulk import and tagging (§3.4).
 
 ---
 
@@ -35,7 +37,7 @@ cloud — with an **optional** Android add-on for the few things a web app canno
 | 3 | Install | **No install by default**, so anyone can use it easily. Offer an **optional** install only for features that are really worth it (§9). |
 | 4 | Cloud | **No cloud service.** All data stays on the device. |
 | — | The #1 pain | "Info is sent to me outside the app and I don't like spending time entering info." → Capture-first design (§2). |
-| 5 | What PeerMatch's data is | PeerMatch's Girls are **single girls, some suggested to the owner**, tracked so they can also be **offered to friends**. → One card serves both modes (§3.3); import mapping in §5.1. |
+| 5 | What PeerMatch's data is | PeerMatch's Girls are **single girls, some suggested to the owner**, tracked so they can also be **offered to friends**. → One card serves both modes (§3.5); import mapping in §5.1. |
 | 6 | App language | **English for now.** App text kept in one place so Hebrew/Russian can be added later. |
 | 7 | Voice to text | **Transcribe**, using Chrome's recognition (on-device when available, otherwise Google's). |
 | — | Dating sites | Ideas also come from **SawYouAtSinai, ChabadMatch, BasheretNow** and similar. Everyone contacted there must be recorded quickly so they are **not offered again** (§2.5). |
@@ -222,7 +224,87 @@ The PeerMatch successor, restructured (details in revision 1's design, kept here
 - **Shadchanim list: kept.** In shadchan mode you still send cards to other shadchanim and
   receive cards from them; the list is where that network lives.
 
-### 3.3 One card, two uses
+### 3.4 Organizing hundreds of shadchanim (and singles)
+
+Researched how phone books (Google Contacts labels), personal CRMs (Monica, Dex, Clay, folk),
+sales CRMs (HubSpot active vs static lists), recruitment agencies (candidate and client
+specialty tagging), and information-architecture work on tags vs folders handle large contact
+sets. What carries over:
+
+**1. One shared set of categories for singles *and* shadchanim.** The categories you'd put on
+a shadchan (*handles older singles, BT, divorced…*) are the same ones that describe a single.
+Recruitment agencies do exactly this: candidates' skills and clients' specialties use one
+vocabulary, so search matches them. With one shared set, the app can answer on its own:
+- *Single mode:* **"Who should have my profile?"** — your profile's categories vs every
+  shadchan's → *"38 shadchanim work with singles like you; 14 don't have your profile yet —
+  send?"*
+- *Shadchan mode:* **"Who should get this card?"** — ranked by fit and by how responsive each
+  shadchan is.
+
+**2. Categories as tap-to-pick chips, not typed tags.** Free-typed tags turn into a mess
+("BT", "baal teshuva", "Baal Teshuvah" become three different tags). The research is
+consistent: group them into **categories with fixed options** (faceted classification). You
+tap; you never type. You own the list — add, rename, merge or hide options any time.
+
+Starting set (all editable):
+
+| Category | Options | On a shadchan | On a single |
+|---|---|---|---|
+| Age | under 25 · 25–30 · 30–35 · 35–45 · 45+ | ranges they handle | worked out from the age |
+| Religious level | Chabad · Chassidish · Yeshivish · Modern Yeshivish · Modern Orthodox · Dati Leumi · Traditional · Not religious | several | usually one |
+| Background | Baal teshuvah · FFB · Convert · Russian-speaking · Sephardi · Ashkenazi · Israeli · English-speaking · French-speaking | several | several |
+| Marital status | Never married · Divorced · Divorced with kids · Widowed | several | one |
+| Work / learning | Learning full-time · Learning and working · Working · Good job / professional · Studying | several | one |
+| Location | regions (Jerusalem, Beit Shemesh, Bnei Brak, Center, North, South, Crown Heights, Lakewood, …) | several | worked out from the city |
+| Languages | English · Hebrew · Russian · French · Yiddish | several | several |
+| 🔒 Appearance | your own private scale | what they handle | your private note |
+| 🔒 Special situations | Health / medical · Special needs · Fertility / genetic · Other sensitive | what they handle | private |
+| Shadchan only: how they work | Professional · Volunteer · Organization · Site matchmaker · Rebbetzin · Friend | | |
+| Shadchan only: reach them by | WhatsApp · Calls only (kosher phone) · Email | | |
+
+🔒 = **private**: never included in anything you send, shown with a lock, and can be hidden
+completely. Everything stays on your phone.
+
+**3. Where each contact came from.** Every shadchan (and every single) records **how you got
+them**, picked from chips, plus the date added:
+*Referred by a person* (linked to that person — a shadchan, friend or relative, so the
+**referral tree** shows who introduced whom) · *Friend* · *Family* · *Internet search* ·
+*Dating site's shadchan list* (which site) · *WhatsApp group* (which group) · *Organization* ·
+*Event / shiur* · *Ad / newspaper* · *Already knew them* · *Other* — with an optional note
+(*"met at the Kiddush in Beit Shemesh"*). This answers **"where do my good shadchanim come
+from?"**. Combined with the usefulness numbers (point 7), you can see, for example, that
+friends' referrals send better offers than internet searches. The Inbox fills it in when it
+can (a contact shared from a WhatsApp group becomes *WhatsApp group: <name>*).
+
+**4. Lists: smart and manual** (HubSpot's active vs static lists, Google's labels).
+- **Smart list** = a saved combination of categories that updates itself: *"Older + BT +
+  Jerusalem"*. A new shadchan tagged that way appears in it automatically.
+- **Manual list** = hand-picked: *"Top 10"*, *"Send my new profile to these"*,
+  *"Rosh Hashanah greetings"*.
+- A shadchan can be in **any number of lists** — labels, not folders.
+- Each list can have its own **keep-in-touch interval** (*Top 10: every 2 weeks; everyone
+  else: every 2 months*).
+
+**5. Phone-book habits for long lists**: **A–Z index** down the side · **Favorites** (star)
+pinned on top · **Recent** · search across every field, category and note, forgiving of
+spelling · **Group by** letter / region / category / where they came from / last contact ·
+**merge duplicates** (same phone number).
+
+**6. Getting hundreds in and categorized without typing**:
+- **Bulk import** from your phone's contacts (the contact picker lets you tick many at once),
+  from a shared contacts file (`.vcf`), or from a WhatsApp group chat export — shown as a
+  table, *"all of these are shadchanim, from: WhatsApp group X"* in one tap, duplicates merged.
+- **Bulk tagging**: tick 30 shadchanim → set a category, a source or a list in one action.
+- **Tagging sprint**: one shadchan per screen, tap the chips, next — like filing the Inbox.
+  Hundreds of shadchanim in one sitting.
+- **Suggested categories**: the app proposes them from what it already knows. Examples:
+  PeerMatch's free-text tags, the notes, and the offers a shadchan has sent you (*"Mrs. Katz
+  sent you 12 offers, mostly 30+ and Russian-speaking — add these?"*). You confirm with one tap.
+
+**7. Which shadchanim are actually useful**: per shadchan, per list and per source — offers
+sent to you, how many you looked into, how many led to a date, how fast they reply.
+
+### 3.5 One card, two uses
 A girl suggested **to you** may also be someone you'd suggest **to a friend**. She exists
 **once**, as one card:
 - in **single mode** she appears in *Offers*, with your own stage (looking into, declined,
@@ -290,7 +372,8 @@ numbers local, WhatsApp international, +1 and others untouched · PeerMatch's de
 
    ACTIVITY  one timeline entry, linked to every record it involves (shown in each, deleted once)
    TASK      a due date on a contact, offer/suggestion, or "update my profile" — never chases a single
-   LIST      saved filter or hand-picked group
+   LIST      smart (saved categories, updates itself) or manual (hand-picked); own keep-in-touch interval
+   CATEGORY  the shared, editable chip vocabulary used by contacts, cards and my profile
    FILE      photo / PDF / audio stored once, referenced by id
 ```
 
@@ -300,12 +383,14 @@ numbers local, WhatsApp international, +1 and others untouched · PeerMatch's de
   date, what changed) + pending-update checklist.
 - **Card** — a single: name + Hebrew/Russian spellings, **age with its date** (or date of
   birth), city, profile text **verbatim**, looking for, all PeerMatch flags and fields,
-  photos, resume files, audio, contact people, references, **source** (who, when, how),
+  photos, resume files, audio, contact people, references, **categories** (§3.4, many worked
+  out automatically), **source** (who, when, how),
   status (active / on hold / dating / engaged / married / not available), untouched copy of
   any imported PeerMatch record.
 - **Contact** — name, **roles** (shadchan, contact person, reference, parent — one person,
   one record), several phones (mobile / landline), email, city, communities, languages,
-  referred by, keep-in-touch interval, follow-up, waiting, notes.
+  **categories** (the shared set, §3.4), **where they came from** (+ referred by, linked),
+  favorite, lists, keep-in-touch interval, follow-up, waiting, notes.
 - **Suggestion / Offer** — the two sides (in single mode one side is *me*; the other side
   may be a light card created from the offer text), who suggested it (several allowed,
   first credited), stage, each side's answer with date, why it ended, dates list,
@@ -396,7 +481,12 @@ Measured on v131 (75 live files, ~600 KB):
    table → one status for all) + site profile numbers.
 4. **N** Single mode: Offers pipeline with stages, several suggesters, follow-ups.
 5. **N** Single mode: My profile with versions, "who has it", update checklist, send updates.
-6. **N** Shadchanim book: keep-in-touch intervals, has-my-profile, offers from them.
+6. **N** Shadchanim book: keep-in-touch intervals, has-my-profile, offers from them;
+   **shared categories** (chips, private ones locked), **where they came from** + referral
+   tree, favorites, A–Z index, **bulk import** from phone contacts / `.vcf` / WhatsApp group,
+   **bulk tagging** and the **tagging sprint**.
+6a. **N** **Smart and manual lists**, each with its own keep-in-touch interval;
+   **"Who should have my profile?"** coverage.
 7. **N** Home with capture bar, Inbox, action items, recently added, data section; mode switch.
 8. **N** Persistent storage + backup reminder. Age that stays correct.
 9. **K** The one send service: WhatsApp / SMS / Email / Copy, PDF-first, photo step,
@@ -487,8 +577,8 @@ phone. Nothing is called device-verified until you test it.
 
 | Stage | Delivers | You test |
 |---|---|---|
-| **1. Foundation + capture** | Tooling, tests, CI gate; database; PeerMatch import; backup/restore; Home with capture bar; **Inbox** (Share-in queue, Paste with WhatsApp sender detection, Voice note, Photo); detection + extraction; triage screen; Shadchanim book; mode switch | Share 3 things in a row, paste a WhatsApp conversation, dictate a call note — all in the Inbox, nothing lost |
-| **2. Single mode** | Offers pipeline, duplicate / already-went-out / already-contacted warnings, several suggesters, follow-ups; **sites as sources + Paste a list**; the PeerMatch "suggested to me?" screen; **My profile** with versions and "who has it"; the one send service | Paste your ChabadMatch list and mark it contacted; file an email idea and get warned it's a repeat; send your updated profile to everyone with the old one |
+| **1. Foundation + capture** | Tooling, tests, CI gate; database; PeerMatch import; backup/restore; Home with capture bar; **Inbox** (Share-in queue, Paste with WhatsApp sender detection, Voice note, Photo); detection + extraction; triage screen; Shadchanim book with **categories, where-they-came-from, favorites, A–Z, bulk import from contacts, bulk tagging, tagging sprint**; mode switch | Share 3 things in a row, paste a WhatsApp conversation, dictate a call note — all in the Inbox, nothing lost; import 50 shadchanim from your contacts and categorize them in one sitting |
+| **2. Single mode** | Smart + manual lists, **"Who should have my profile?"**; Offers pipeline, duplicate / already-went-out / already-contacted warnings, several suggesters, follow-ups; **sites as sources + Paste a list**; the PeerMatch "suggested to me?" screen; **My profile** with versions and "who has it"; the one send service | Paste your ChabadMatch list and mark it contacted; file an email idea and get warned it's a repeat; send your updated profile to everyone with the old one |
 | **3. Tracking** | Action items on Home, keep-in-touch intervals, post-call popup, references, dates log, shadchan stats, templates, calendar reminders | A week of real use |
 | **4. Shadchan mode** | Guys / Girls / Shidduchim, Make Match → Suggestion, Sent-to, filters, Lists, Find matches; full PeerMatch parity | Your PeerMatch data working in shadchan mode |
 | **5. Polish for anyone** | Hebrew + Russian app text, WhatsApp chat import, guided voice, translation, password-protected backups, PIN | Hand it to someone else |
@@ -518,6 +608,14 @@ Rev 2's three questions are answered (§1, rows 5–7). Remaining:
 - Shadchan Pro — https://www.shadchanpro.com/
 - SawYouAtSinai — https://en.wikipedia.org/wiki/SawYouAtSinai
 - ZUUG — https://zuug.app/
+- Google Contacts labels — https://support.google.com/contacts/answer/30970
+- Monica personal CRM — https://github.com/monicahq/monica
+- folk CRM groups and fields — https://help.folk.app/en/articles/9790806-folk-data-model
+- HubSpot active vs static lists — https://www.hublead.io/blog/hubspot-active-vs-static-list
+- Recruitment tagging vs custom fields — https://giighire.com/2026/08/10/custom-fields-vs-custom-tagging/
+- Faceted classification — https://www.hedden-information.com/faceted-classification-and-faceted-taxonomies/
+- Specialized shadchanim (special needs) — https://www.beineinu.org/special-needs/special-needs-shidduchim/641-shadchanim/2932-special-needs-shadchanim-israel
+- Hashkafa categories — https://en.wikipedia.org/wiki/Hashkafa
 - ChabadMatch FAQ — https://www.chabadmatch.com/about.php
 - BasheretNow — https://jewishjournal.com/community/327779/new-jewish-dating-app-basheret-allows-users-to-play-matchmaker-re-define-online-dating/
 - Between Carpools — https://betweencarpools.com/organize-keep-track-of-resumes/
