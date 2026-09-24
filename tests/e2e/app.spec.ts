@@ -164,6 +164,12 @@ test('Paste → Inbox → new person, then find her by city and age', async ({ p
   await expect(page.getByRole('button', { name: /Age about 27/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /Shira Example/ })).toBeVisible();
 
+  /* Text from the Android add-on's bubble arrives in the address, with the chat's name. */
+  await page.goto('./#/capture/paste?addon=1&sender=' + encodeURIComponent('+972 50 000 0909') + '&text=' + encodeURIComponent('Tova Example\nage 30'));
+  await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue('Tova Example');
+  await expect(page.getByRole('button', { name: /Add “\+972 50 000 0909” as a new shadchan/ })).toBeVisible();
+  await expect(page).toHaveURL(/#\/capture\/paste$/);
+
   /* Adding the same phone number again is flagged before saving. */
   await page.goto('./#/person/new?role=shadchan');
   await page.getByRole('button', { name: 'Add a phone' }).click();

@@ -6,12 +6,13 @@ import { blankPerson, savePerson } from '../../db/repo';
 import type { Gender, InboxItem, Person } from '../../db/types';
 import { fileItem, guessFromText, possibleSame, type FileKind } from '../../inbox/fileItem';
 import { useLive } from '../../hooks';
-import { searchPeople } from '../../lib/search';
+import { norm, searchPeople } from '../../lib/search';
+import { phoneKey, phoneType } from '../../lib/phone';
 import { relativeDay } from '../../lib/format';
 import { go, mode, reportError, showToast } from '../../state';
 import { displayName } from '../describe';
 
-export function QuickFile({ text, getItem, onKeep, allowEmpty }: { text: string; getItem: () => Promise<InboxItem>; onKeep?: () => void; allowEmpty?: boolean }) {
+export function QuickFile({ text, getItem, onKeep, allowEmpty, senderHint }: { text: string; getItem: () => Promise<InboxItem>; onKeep?: () => void; allowEmpty?: boolean; senderHint?: string }) {
   const helping = mode.value === 'helping';
   const [kind, setKind] = useState<FileKind>(helping ? 'friend' : 'idea');
 
@@ -40,8 +41,19 @@ export function QuickFile({ text, getItem, onKeep, allowEmpty }: { text: string;
     setCity(guess.city);
   }, [guess, touched]);
   useEffect(() => {
-    if (!senderTouched && guess.senderId) setSender(live.find((p) => p.id === guess.senderId));
-  }, [guess, senderTouched, live]);
+    if (senderTouched) return;
+    /* The WhatsApp chat's name (from the add-on): a saved name, or a phone number. */
+    if (senderHint) {
+      const hint = norm(senderHint);
+      const key = phoneKey(senderHint);
+      const match = live.find((p) => (key && p.phoneKeys.includes(key)) || norm(p.name) === hint || p.altNames.some((a) => norm(a) === hint));
+      if (match) { setSender(match); return; }
+      if (!all) return;
+      setFind(senderHint);
+      return;
+    }
+    if (guess.senderId) setSender(live.find((p) => p.id === guess.senderId));
+  }, [guess, senderTouched, live, senderHint]);
 
   useEffect(() => {
     let live = true;
@@ -55,7 +67,9 @@ export function QuickFile({ text, getItem, onKeep, allowEmpty }: { text: string;
   const edit = (fn: (v: string) => void) => (e: Event) => { setTouched(true); fn((e.currentTarget as HTMLInputElement).value); };
 
   const addNewSender = async () => {
-    const p = blankPerson({ roles: ['shadchan'], name: find.trim() });
+    const typed = find.trim();
+    const isPhone = !!phoneKey(typed) && /^[+\d\s()-]+$/.test(typed);
+    const p = blankPerson({ roles: ['shadchan'], name: isPhone ? '' : typed, phones: isPhone ? [{ number: typed, type: phoneType(typed) }] : [] });
     await savePerson(p);
     setSenderTouched(true);
     setSender(p);

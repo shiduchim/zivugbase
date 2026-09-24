@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="bubble_description">Shows a small ZivugBase bubble over other apps. When you tap it, the text on the screen (for example the WhatsApp messages you are looking at) opens in ZivugBase on this phone, for you to check and save. It reads nothing until you tap it, and it sends nothing to the internet.</string>
+</resources>

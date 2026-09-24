@@ -1,0 +1,28 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'org.zivugbase.addon'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'org.zivugbase.addon'
+        minSdk 24
+        targetSdk 35
+        /* Minutes since 1970: every build is newer than the last, so it installs as an update. */
+        versionCode ((int) (System.currentTimeMillis() / 60000L))
+        versionName '0.1'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

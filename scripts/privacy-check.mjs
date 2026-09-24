@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 
 const files = execSync('git ls-files -co --exclude-standard', { encoding: 'utf8' })
   .split('\n')
-  .filter((f) => f && !/package-lock\.json$|\.(png|jpg|jpeg|webp|gif|ico|pdf|zip|woff2?)$/i.test(f));
+  .filter((f) => f && !/package-lock\.json$|\.(png|jpg|jpeg|webp|gif|ico|pdf|zip|jks|woff2?)$/i.test(f));
 
 const phone = /(?:\+?\d{1,3}[\s.-]?)?(?:\(\d{2,4}\)|\d{2,4})[\s.-]?\d{3}[\s.-]?\d{3,4}\b/g;
 const email = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;

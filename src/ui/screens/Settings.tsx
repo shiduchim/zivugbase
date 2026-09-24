@@ -198,6 +198,18 @@ export function Settings() {
           </label>
         </div>
 
+        <div class="card" id="addon">
+          <h2>Android add-on: the “Z” bubble</h2>
+          <p style="margin-top:0">A small bubble floats over WhatsApp and every other app. Tap it in a chat and the messages on the screen open here, filled in, ready to Save. You can also select text anywhere and choose “ZivugBase”.</p>
+          <a class="btn primary full" href="addon/ZivugBase-addon.apk" download="ZivugBase-addon.apk">Download the add-on (Android)</a>
+          <ol class="small" style="padding-inline-start:20px">
+            <li>Open the downloaded file and tap Install (Android warns about apps from outside the Play Store — that’s expected).</li>
+            <li>Open “ZivugBase add-on” and tap “Turn on the bubble”. Turn on “ZivugBase bubble”.</li>
+            <li>If Android says the setting is restricted, follow step 2 in the add-on.</li>
+          </ol>
+          <p class="muted small">The bubble reads the screen only when you tap it. The add-on has no internet permission and can’t send anything anywhere. ZivugBase keeps working without it.</p>
+        </div>
+
         <StorageCard />
         <DeletedCard />
 

@@ -38,7 +38,7 @@ function useItemOnce(source: 'paste' | 'speak', text: string) {
   };
 }
 
-function CaptureForm({ source, text }: { source: 'paste' | 'speak'; text: string }) {
+function CaptureForm({ source, text, senderHint }: { source: 'paste' | 'speak'; text: string; senderHint?: string }) {
   const getItem = useItemOnce(source, text);
   const keep = async () => {
     try {
@@ -50,11 +50,16 @@ function CaptureForm({ source, text }: { source: 'paste' | 'speak'; text: string
     }
   };
   if (!text.trim()) return null;
-  return <QuickFile text={text} getItem={getItem} onKeep={keep} />;
+  return <QuickFile text={text} getItem={getItem} onKeep={keep} {...(senderHint ? { senderHint } : {})} />;
 }
 
 function Paste() {
-  const [text, setText] = useState(() => { const t = pasted.value ?? ''; pasted.value = null; return t; });
+  /* From the Paste button (clipboard) or from the Android add-on's bubble (text in the address). */
+  const q = route.value.query;
+  const [text, setText] = useState(() => { const t = q.get('text') ?? pasted.value ?? ''; pasted.value = null; return t; });
+  const [senderHint] = useState(() => q.get('sender') ?? undefined);
+  /* Take the text out of the address, so Back or a reload doesn't bring it again. */
+  useEffect(() => { if (q.get('text')) go('/capture/paste', { replace: true }); }, []);
   const box = useRef<HTMLTextAreaElement>(null);
   useEffect(() => { if (!text) box.current?.focus(); }, []);
 
@@ -69,7 +74,7 @@ function Paste() {
           </>
         )}
         <textarea ref={box} class="bidi" dir="auto" style={text ? 'min-height:22dvh' : 'min-height:40dvh'} value={text} placeholder="Paste here" onInput={(e) => setText(e.currentTarget.value)} />
-        <CaptureForm source="paste" text={text} />
+        <CaptureForm source="paste" text={text} {...(senderHint ? { senderHint } : {})} />
       </main>
     </>
   );
