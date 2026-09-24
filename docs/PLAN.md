@@ -48,6 +48,11 @@ store; an optional Android add-on exists only for what a web app cannot do.
 | 9 | Voice | Voice notes are transcribed (on the phone when possible, otherwise Chrome's recognition). |
 | 10 | Dating sites | SawYouAtSinai, ChabadMatch, BasheretNow… are sources; everyone contacted there is recorded so they're **not offered again** (§8.5). ChabadMatch shows the owner most names. |
 | 11 | Hundreds of shadchanim | Shared categories, where each contact came from, lists, bulk import and tagging (§9). |
+| 12 | Backup password | **Not needed yet.** Backups are not encrypted for now; encryption stays designed (§11) and is added when the owner asks. |
+| 13 | Guided voice | Removed — speak freely, the app extracts (recommended default; owner didn't object). |
+| 14 | One word | **"Ideas"** everywhere (recommended default). |
+| 15 | "Looking for" when sharing | Unticked by default, with a checkbox; age range sought never shared (recommended default). |
+| 16 | Stage 1 | **Go** — 2026-09-24. |
 
 ---
 
@@ -645,7 +650,8 @@ attachments are limited to 25 MB. No web API can back up in the background.
   `.txt`, which also helps stay under Gmail's 25 MB. Needs an on-phone test that Gmail and Drive
   keep it byte-exact; if not, the `.txt` stays. Old `.zip` and `.txt` backups (PeerMatch or
   ZivugBase) always restore.
-- **Encrypted with a backup password** (key stretching per OWASP's recommendation, AES encryption
+- *Designed, not built yet (owner, decision 12):* **Encrypted with a backup password** (key
+  stretching per OWASP's recommendation, AES encryption
   built into the browser). Base64 is not encryption: anyone with a PeerMatch `.txt` backup can
   read it. The password is set once and remembered on this phone, so backing up stays one tap;
   restoring on a new phone asks for it. **Accepted knowingly:** a forgotten password means an
@@ -906,7 +912,7 @@ ZivugBase replaces it.
 
 | Stage | Delivers |
 |---|---|
-| **1. Foundation** | Tooling, tests, CI gate · data model (§5) · PeerMatch import + "suggested to me?" screen · backup/restore (ZIP, PDF email backup, encryption, reminders) · persistent storage · first run · modes and tabs · People with search chips, A–Z, favorites · person screen · Undo + Recently deleted · drafts · **basic Inbox** (share-in queue, Paste, Speak, Photo; file as a person or a note) |
+| **1. Foundation** | Tooling, tests, CI gate · data model (§5) · PeerMatch import + "suggested to me?" screen · backup/restore (ZIP, PDF email backup, reminders) · persistent storage · first run · modes · People with search chips, A–Z, favorites · person screen · Undo + Recently deleted · drafts · **basic Inbox** (share-in queue, Paste, Speak, Photo; file as a person or a note). The *Ideas* and *Me* tabs appear in Stage 3 when they have real screens (principle 10); until then *People → Girls* has a *Suggested to me* chip |
 | **2. Smart capture + organizing** | **The understanding layer (§8.6)** with its test collection and accuracy tracking — the largest piece of work in the project; detection and extraction (EN/HE/RU), sender recognition from copied WhatsApp, repeat warnings + merge screen, one-per-screen triage · categories, where they came from, bulk import (contacts, `.vcf`), bulk tagging, tagging sprint · Lists |
 | **3. Ideas, Me, Share, Today** | Ideas (both modes) · dating sites + Paste a list · Me with versions, pending updates, who has it, "who should have it" · the share flow (PDF-first, preview, Sent? Yes/No) · Today with next steps, automatic waiting, keep-in-touch · post-call popup |
 | **4. Helping others, fully** | New idea from two people, Compare, suggested recipients, usefulness numbers, message templates, WhatsApp chat import, CSV import |
@@ -915,17 +921,9 @@ ZivugBase replaces it.
 
 ---
 
-## 25. Open decisions (the owner's answer is needed before Stage 1)
+## 25. Decisions and what's still needed
 
-1. **Encrypted backups by default?** Recommended **yes** for email/Drive backups, with a remembered
-   password and a printable recovery sheet. Trade-off: a forgotten password makes that backup
-   unreadable.
-2. **Remove guided voice** (field-by-field prompts) in favour of speak-freely-then-extract?
-   Recommended yes.
-3. **"Ideas"** as the one word for suggestions/offers/matches in both modes? Recommended yes.
-4. **"Looking for"** in outgoing profiles: unticked by default with a checkbox in the preview
-   (today's behaviour, made visible); *age range sought* never shared? Recommended yes.
-5. **Go-ahead for Stage 1.**
+All Stage 1 decisions are made (§1, rows 12–16).
 
 Soon (before Stage 2): **20–50 real messages** as they arrive — WhatsApp ideas, emails, notes of
 what was said on calls — in English, Hebrew and Russian, with names and phone numbers changed.
