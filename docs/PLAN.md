@@ -1,6 +1,6 @@
 # ZivugBase — Product design and build plan
 
-Revision 6 — 2026-09-24. **Design only; no application code has been written for it yet.**
+Revision 7 — 2026-09-24. **Design only; no application code has been written for it yet.**
 This is the handoff between stages: every later stage starts by reading it, and code must follow
 the design principles in §2.
 
@@ -9,7 +9,9 @@ Revision history: rev 1 audit + first model · rev 2 capture-first + two modes �
 sites, shared cards, import mapping · rev 4 organizing hundreds of shadchanim · **rev 5 a
 research round on simplicity, privacy, backup, accessibility, errors and real workflows; the
 model is simplified and the whole plan is consolidated into one design** · rev 6 the
-understanding layer (§8.6): Received → Understood → Filed, nothing saved without a tap.
+understanding layer (§8.6): Received → Understood → Filed, nothing saved without a tap · rev 7
+a research round on how other apps capture information (§8.7): use the phone's own tools,
+highlight-in-place review, layout-aware PDF reading, proven libraries.
 
 ---
 
@@ -298,8 +300,13 @@ highlighted).
 
 **Capturing never opens a form.** A share or paste shows *"Saved to Inbox ✓ — File now · Later"*;
 *Later* (or the phone's Back button) returns you straight to WhatsApp or email. Capture takes
-two seconds; filing happens when you have a minute. When the app opens and you've just copied
-something, a one-tap banner offers *"Add what you copied?"*.
+two seconds; filing happens when you have a minute.
+
+**Paste that always works.** Chrome on Android only lets a web page read the clipboard with a
+permission that can be refused and is unreliable on phones, so **Paste** opens a large text box
+with the keyboard up: Android's keyboard (Gboard) shows what you just copied as a chip — **one tap
+pastes it**, with no permission needed. If the clipboard permission *has* been granted, the app
+additionally offers *"Add what you copied?"* when it opens.
 
 ### 8.2 Channels with no install
 
@@ -311,7 +318,9 @@ something, a one-tap banner offers *"Add what you copied?"*.
 | Email attachment | Tap attachment → Share | 2 | — |
 | SMS | Select → Share, or Copy → Paste | 2–3 | auto-captured |
 | A phone call | After hanging up: long-press the icon → **Speak** → say it | 2 + speaking | popup after every call |
-| Paper / screenshot | **Photo** → text read on the phone | 2 | — |
+| WhatsApp **voice note** | In WhatsApp: long-press → **Transcribe** (WhatsApp's own, on the phone, free — on Android for English and Russian; Hebrew so far only on iPhone) → Copy → **Paste**. Otherwise **Share** the voice note; it's kept playable | 4–5 | — |
+| A screen that won't let you copy (an app, a site) | **Google Lens / Circle to Search** reads any screen or screenshot → Copy → **Paste**. Better on screens than ZivugBase's own reader, and free | 3–4 | — |
+| Paper / screenshot | **Photo** → text read on the phone (or Google Lens → Copy → Paste) | 2 | — |
 | Phone contacts | **Add from contacts** (tick many at once) | 2+ | — |
 | A dating site's list | **Paste a list** (§8.5) | 3–4 | — |
 | A spreadsheet | **CSV import** with a column preview | 3–4 | — |
@@ -319,9 +328,10 @@ something, a one-tap banner offers *"Add what you copied?"*.
 To appear in Android's Share menu the web app must be **added to the home screen** (one tap in
 Chrome; no app store). On iPhone, Paste, Speak and Photo work; sharing into the app does not.
 
-**Honest limits.** A forwarded WhatsApp **voice note** is stored and playable, but a web app
-cannot turn a recorded audio *file* into text (browser speech recognition only listens to the
-microphone) — so it's filed with a one-line note you type or speak. **Email** is the clunkiest
+**Honest limits.** ZivugBase itself cannot turn a recorded audio *file* into text (browser speech
+recognition only listens to the microphone). WhatsApp's own **Transcribe** covers English and
+Russian voice notes on Android; a Hebrew voice note is kept playable and filed with a one-line note
+you type or speak. **Email** is the clunkiest
 channel (Gmail has no "share this email"), hence Select all → Share or Copy → Paste. Nothing is
 captured **automatically** without the optional add-on.
 
@@ -344,6 +354,17 @@ today/tomorrow · Update my profile · Note on … · Dismiss*).
 4. **"Send an updated profile with these new items"** → filed as **Pending updates** on *Me*;
    after updating, *"11 shadchanim have an older version — share the new one?"*
 
+### 8.5 Dating sites
+Each site is a **source**. **Paste a list**: select all + copy a site's list (or share
+screenshots) → a table of the people found → untick mistakes → one status for all (*Contacted on
+ChabadMatch — Sep 2026*, *Declined on SawYouAtSinai*…). A one-time **sample per site** tunes the
+reader to its layout; a typed quick list (`Chaya 26 Crown Heights`) always works. Repeat warnings
+are *certain* (same site profile number/link), *likely* (same name in any spelling + age + city)
+or *possible* (age + city only, for entries without a name); one tap confirms "same person".
+Site email alerts can be shared in, and the site is recognized as the source.
+
+---
+
 ### 8.6 The understanding layer — the main engineering problem
 
 Getting material into the Inbox is easy; **understanding it correctly is the hard part** and gets
@@ -365,9 +386,12 @@ must become a **proposal** — nothing saved yet:
 
 **Three levels, one safety rule.**
 - **Received** — *"I got something."* The original is stored; nothing else happens yet.
-- **Understood** — *"This looks like a girl + her mother + a referral from Sarah."* Shown as an
-  editable card: every extracted field visible, each marked sure / unsure, each tap-to-fix, and
-  repeat warnings (*"a Cohen in Lakewood already exists — same family?"*).
+- **Understood** — *"This looks like a girl + her mother + a referral from Sarah."* Shown the way
+  Todoist and Fantastical show what they understood: **the original text with the recognized parts
+  highlighted and labelled in place** (*29* → age, *Lakewood* → city, *Mrs. Cohen* → her mother),
+  unsure ones in a different colour. Tap a highlight to fix it; **select any word the app missed
+  and label it** (*"this is her city"*). Below it, the people it will create and any repeat
+  warnings (*"a Cohen in Lakewood already exists — same family?"*). No separate form.
 - **Filed** — only when you tap **Save as girl / guy / shadchan / idea / note**. **Nothing
   extracted ever enters the real database, or overwrites an existing field, without that tap.**
 
@@ -394,16 +418,28 @@ are the most valuable input to this (§25).
 Where rules run out (long rambling messages, whole chat exports), the optional in-browser AI
 experiment (§18) may help later — as another *proposal* source under the same safety rule.
 
-### 8.5 Dating sites
-Each site is a **source**. **Paste a list**: select all + copy a site's list (or share
-screenshots) → a table of the people found → untick mistakes → one status for all (*Contacted on
-ChabadMatch — Sep 2026*, *Declined on SawYouAtSinai*…). A one-time **sample per site** tunes the
-reader to its layout; a typed quick list (`Chaya 26 Crown Heights`) always works. Repeat warnings
-are *certain* (same site profile number/link), *likely* (same name in any spelling + age + city)
-or *possible* (age + city only, for entries without a name); one tap confirms "same person".
-Site email alerts can be shared in, and the site is recognized as the source.
+### 8.7 What other apps taught us about capture (research round, rev 7)
 
----
+**No existing product solves this within the constraints.** The best capture systems — Expensify
+receipts, MyShadchan, HubSpot, recruiting systems — rely on **a server**: a private email-in
+address, cloud AI reading, paid resume parsers. With no cloud and free-only, those are out. But
+they, and the phone itself, contribute a lot:
+
+| From | Lesson | In ZivugBase |
+|---|---|---|
+| **Expensify** (receipt capture) | Accept anything any way (photo, share, email); process in a queue; show extracted fields *ready for review*; rules learned per merchant auto-fill next time | The Inbox + Understood level; **rules per sender**: once items from Mrs. Katz are usually *ideas for me*, that becomes the proposed default |
+| **Todoist / Fantastical** (typing a sentence) | Highlight what was understood *inside the sentence*; the date is recognized as you type | Highlight-in-place review (§8.6); Speak uses the same, e.g. *"call Rabbi Cohen **tomorrow** at **052-…**"* |
+| **Drafts** ("where text starts") | Capture first into an inbox; decide what it becomes later | Capture never opens a form (§8.1) |
+| **OpenResume** (free, open-source resume reader that runs in the browser; a Hebrew fork exists) | Read PDFs **by layout**, not as flat text: text positions, bold lines and gaps find the sections; each field scored by several small rules | PDF resumes read by layout (name at the top, *Looking for* section, contact block at the bottom) — far more accurate than searching the text |
+| **The phone itself** | Android already has free, on-phone tools better than anything we'd build | WhatsApp's Transcribe for voice notes · Google Lens / Circle to Search for any screen · Gboard's clipboard chip for one-tap paste · Gboard's offline voice typing as an alternative to Chrome's speech recognition |
+| **Proven free libraries** | Don't hand-write what's solved | `libphonenumber-js` (phone numbers of every country, Israeli and US formats) · `chrono-node` (dates in English and Russian: *"next Thursday"*, *"через неделю"*; Hebrew dates are ZivugBase's own small rule set) |
+| **Hebrew/English/Russian name recognizers** that run in the browser (e.g. DictaBERT-NER for Hebrew, already run in a browser by others, self-hosted in parts under 50 MB) | Finds names and places that no word list contains | **Optional "smart reading" pack**, downloaded once on Wi-Fi, self-hosted, offline; still only *proposes* (later stage, measured against the test collection before it's switched on) |
+| **WhatsApp "Message yourself"** (a common note-to-self habit) | Forwarding is the most familiar WhatsApp gesture and keeps files | Optional batch habit: forward shidduch messages to yourself during the day, then once a day **Export chat → ZivugBase**. Caveat: forwarded messages lose who originally sent them |
+| **Network effect without a cloud** | Structured data can travel inside a normal file | Later: a profile PDF **made by ZivugBase** looks normal to anyone, but carries its data inside; another ZivugBase user who shares it in gets a perfect import with no reading needed |
+
+**Considered and rejected:** an email-in address (needs a server) · WhatsApp Web browser extensions
+like those CRM tools use (desktop only, can't run in Android Chrome, and automating WhatsApp risks
+its terms) · paid resume parsers (cloud, paid) · online AI (cloud).
 
 ## 9. Organizing hundreds of shadchanim
 
@@ -585,6 +621,7 @@ remembered so it isn't asked again.
 | Text from PDFs and photos | PDF.js + Tesseract **on the phone**, self-hosted |
 | Suggested categories | Simple counts of what a shadchan has sent |
 | Duplicate detection | Rules + spelling-tolerant name matching |
+| Recognizing names and places no word list has (especially Hebrew) | **Optional smart-reading pack** (§8.7): small recognizers such as DictaBERT-NER running in the browser, self-hosted, offline |
 | Turning a long WhatsApp export into timeline entries | **Later experiment**: an AI model running inside Chrome (WebGPU) — one-time 300 MB–2 GB download, Hebrew/Russian quality unproven |
 
 **Never**: judging compatibility or scoring people · sending anything AI wrote without you reading
@@ -608,6 +645,10 @@ analytics, trackers, third-party scripts, CDNs · location features · two ways 
 Only for what a web app physically cannot do, most valuable first:
 1. **Automatic capture** of WhatsApp, SMS and email notifications from known people (text only; not
    attachments; not if you were already inside that chat).
+1a. **"Add to ZivugBase" in the text-selection menu of every app** (Android's text-processing
+   action — the same place "Translate" appears): select text in WhatsApp or Gmail → one tap, no
+   copying and no app switching. Plus **direct-share shortcuts** in the share sheet
+   (*ZivugBase → idea for me*, *→ Mrs. Katz*).
 2. **A popup after every call** with a known person, incoming ones too.
 3. **Reminders that ring** with the app closed.
 4. **A photo / PDF straight into one chosen WhatsApp chat** (undocumented WhatsApp behaviour — may
@@ -682,7 +723,8 @@ fixed banner of the facts that prevent mistakes).
 | Build / hosting | Vite → GitHub Pages via Actions | static, no server |
 | Database | Dexie (IndexedDB) | real tables, indexes, migrations, lists that update themselves |
 | Search | MiniSearch | fast, spelling-tolerant |
-| PDF / OCR | PDF.js + Tesseract, **self-hosted**, eng/heb/rus data | loaded only when asked; nothing from a CDN |
+| PDF / OCR | PDF.js (**read by layout**, as OpenResume does) + Tesseract, **self-hosted**, eng/heb/rus data | loaded only when asked; nothing from a CDN |
+| Phones / dates | `libphonenumber-js` · `chrono-node` (+ own Hebrew date rules) | proven, free, offline |
 | Encryption | Web Crypto (built into the browser) | no library needed |
 | Speech | Chrome speech recognition, on-device when available | owner accepted |
 | Tests | Vitest + Playwright | **must pass before any deploy** |
