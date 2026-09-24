@@ -13,8 +13,7 @@ import { go, mode, reportError, showToast } from '../../state';
 import { displayName } from '../describe';
 
 export function QuickFile({ text, getItem, onKeep, allowEmpty, senderHint }: { text: string; getItem: () => Promise<InboxItem>; onKeep?: () => void; allowEmpty?: boolean; senderHint?: string }) {
-  const helping = mode.value === 'helping';
-  const [kind, setKind] = useState<FileKind>(helping ? 'friend' : 'idea');
+  const [kind, setKind] = useState<FileKind>('idea');
 
   const [touched, setTouched] = useState(false);
   const [name, setName] = useState('');
@@ -90,9 +89,8 @@ export function QuickFile({ text, getItem, onKeep, allowEmpty, senderHint }: { t
     }
   };
 
-  const kinds: [FileKind, string][] = helping
-    ? [['friend', 'A single'], ['shadchan', 'A shadchan']]
-    : [['idea', 'Idea for me'], ['friend', 'For a friend'], ['shadchan', 'A shadchan']];
+  /* The owner is single in both modes; in shadchan mode "for a friend" is a single to set up. */
+  const kinds: [FileKind, string][] = [['idea', 'Idea for me'], ['friend', mode.value === 'me' ? 'For a friend' : 'A single'], ['shadchan', 'A shadchan']];
   const single = kind !== 'shadchan';
 
   return (

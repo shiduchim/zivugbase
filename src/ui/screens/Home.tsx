@@ -4,19 +4,18 @@ import { addActivity, getMe, getSetting, savePerson } from '../../db/repo';
 import type { Person } from '../../db/types';
 import { backupStatus } from '../../backup/backup';
 import { useLive } from '../../hooks';
-import { go, showToast } from '../../state';
-import { relativeDay, startOfDay } from '../../lib/format';
-import { plural } from '../../text';
-import { PersonRow, SettingsButton, TopBar, Loading } from '../parts/common';
-import { CaptureBar } from '../parts/CaptureBar';
-import { rowSub, waitingDays, whenText, WAIT_DAYS_DEFAULT } from '../describe';
-import { call, canWhatsApp, whatsapp } from '../contact';
+import { go, mode, showToast } from '../../state';
+import { initials, relativeDay, startOfDay } from '../../lib/format';
+import { SettingsButton, TopBar, Loading } from '../parts/common';
+import { QuickActions } from '../parts/CaptureBar';
+import { displayName, rowSub, waitingDays, whenText, WAIT_DAYS_DEFAULT } from '../describe';
 import type { ReviewRow } from '../../import/peermatch';
 import { answerIdea } from '../../inbox/fileItem';
 import type { Idea } from '../../db/types';
 import { ageLabel } from '../../lib/age';
 
 const DAY = 86400000;
+const SOURCE_ICON: Record<string, string> = { share: '⇪', paste: '¶', speak: '🎙', photo: '▣', import: '↓' };
 
 interface TodayItem { p: Person; why: string; kind: 'step' | 'wait'; sort: number }
 
@@ -39,66 +38,37 @@ export function todayList(people: Person[], waitDays: number, at = Date.now()): 
   return out.sort((a, b) => a.sort - b.sort);
 }
 
-function TodayRow({ item, waitDays }: { item: TodayItem; waitDays: number }) {
-  const { p } = item;
-  const phone = p.phones[0];
-  const done = async () => {
-    const before = structuredClone(p);
-    const q = structuredClone(p);
-    if (item.kind === 'step') {
-      const what = q.nextStep?.what ?? '';
-      delete q.nextStep;
-      await savePerson(q);
-      const act = await addActivity('action', '', [p.id], { title: `Done: ${what}` });
-      showToast(`Done: ${what}`, { label: 'Undo', run: async () => { await db.people.put(before); await db.activities.delete(act.id); } });
-    } else {
-      delete q.waitingSince;
-      await savePerson(q);
-      showToast('No longer waiting.', { label: 'Undo', run: async () => { await db.people.put(before); } });
-    }
-  };
-  const snooze = async () => {
-    const before = structuredClone(p);
-    await savePerson({ ...structuredClone(p), snoozeUntil: startOfDay(Date.now()) + DAY });
-    showToast('Moved to tomorrow.', { label: 'Undo', run: async () => { await db.people.put(before); } });
-  };
+function MiniRow({ p, right, warn, onClick, children }: { p: Person; right?: string; warn?: boolean; onClick?: () => void; children?: preact.ComponentChildren }) {
   return (
-    <div class="card" style="padding:10px">
-      <PersonRow p={p} waitDays={waitDays} sub={item.why} noSide />
-      <div class="btn-row">
-        <button class="btn small" type="button" onClick={done}>{item.kind === 'step' ? 'Done' : 'Got an answer'}</button>
-        <button class="btn small quiet" type="button" onClick={snooze}>Snooze</button>
-        {phone && <button class="btn small" type="button" onClick={() => call(p, phone)}>Call</button>}
-        {phone && canWhatsApp(p, phone) && <button class="btn small" type="button" onClick={() => whatsapp(p, phone)}>WhatsApp</button>}
-      </div>
+    <div class={`mini-row${warn ? ' is-warn' : ''}`}>
+      <button type="button" class="mini-main" onClick={onClick ?? (() => go('/person/' + p.id))}>
+        <span class="mini-avatar" aria-hidden="true">{initials(p.name)}</span>
+        <b class="bidi">{displayName(p)}</b>
+        {right && <span class="mini-right">{right}</span>}
+      </button>
+      {children}
     </div>
   );
 }
 
-function IdeaRow({ idea, people }: { idea: Idea; people: Map<string, Person> }) {
-  const her = people.get(idea.bId);
-  if (!her) return null;
-  const from = idea.suggestedBy[0]?.personId ? people.get(idea.suggestedBy[0].personId) : undefined;
-  const answer = async (a: 'yes' | 'no') => {
-    const undo = await answerIdea(idea.id, a);
-    showToast(`${a === 'yes' ? 'Yes' : 'No'} to ${her.name || 'this idea'}.`, { label: 'Undo', run: undo });
-  };
-  const sub = [ageLabel(her.age, her.dob), her.city, from ? `from ${from.name}` : '', relativeDay(idea.createdAt).toLowerCase()].filter(Boolean).join(' · ');
+function Panel({ title, count, children, more }: { title: string; count?: number; children: preact.ComponentChildren; more?: { label: string; to: string } }) {
   return (
-    <div class="card" style="padding:10px">
-      <PersonRow p={her} sub={sub} noSide />
-      <div class="btn-row">
-        <button class="btn small primary" type="button" onClick={() => answer('yes')}>Yes</button>
-        <button class="btn small" type="button" onClick={() => answer('no')}>No</button>
-      </div>
-    </div>
+    <section class="panel">
+      <h2 class="panel-head"><span>{title}</span>{count !== undefined && <i>{count}</i>}</h2>
+      {children}
+      {more && <button type="button" class="link-btn" onClick={() => go(more.to)}>{more.label}</button>}
+    </section>
   );
+}
+
+function Stat({ n, label, to, warn }: { n: number; label: string; to: string; warn?: boolean }) {
+  return <button type="button" class={`stat${warn ? ' is-warn' : ''}`} onClick={() => go(to)}><b>{n}</b><span>{label}</span></button>;
 }
 
 export function Home() {
   const people = useLive(() => db.people.toArray(), []);
   const waitDays = useLive(() => getSetting('waitDays', WAIT_DAYS_DEFAULT), []) ?? WAIT_DAYS_DEFAULT;
-  const inboxNew = useLive(() => db.inbox.where('level').anyOf('received', 'understood').count(), []) ?? 0;
+  const inbox = useLive(() => db.inbox.where('level').anyOf('received', 'understood').reverse().sortBy('receivedAt'), []);
   const backup = useLive(() => backupStatus(), []);
   const review = useLive(() => getSetting<ReviewRow[] | null>('pendingReview', null), []);
   const draft = useLive(() => db.drafts.get('person:new'), []);
@@ -108,75 +78,144 @@ export function Home() {
     return (await db.ideas.where('aId').equals(me.id).toArray()).filter((i) => !i.deletedAt && !i.legacyKey && (i.status === 'new' || i.status === 'looking-into')).sort((a, b) => b.createdAt - a.createdAt);
   }, []);
 
-  if (!people) return <><TopBar title="ZivugBase" right={<SettingsButton />} /><main><Loading /></main><CaptureBar /></>;
+  const head = <TopBar title="ZivugBase" right={<SettingsButton />} />;
+  if (!people) return <>{head}<main><Loading /></main></>;
 
   const live = people.filter((p) => !p.deletedAt && !p.roles.includes('me'));
   const byId = new Map(live.map((p) => [p.id, p]));
   const today = todayList(live, waitDays);
-  const recent = [...live].sort((a, b) => b.createdAt - a.createdAt).slice(0, 8);
-  const draftName = (draft?.value as { name?: string } | undefined)?.name?.trim();
+  const due = today.filter((t) => t.kind === 'step');
+  const waiting = today.filter((t) => t.kind === 'wait');
+  const recent = [...live].sort((a, b) => b.createdAt - a.createdAt).slice(0, 6);
+  const draftName = (draft?.value as { person?: { name?: string } } | undefined)?.person?.name?.trim();
+  const count = (f: (p: Person) => boolean) => live.filter(f).length;
+  const single = mode.value === 'me';
+  const helpers = count((p) => p.roles.includes('helper'));
+
+  const done = async (t: TodayItem) => {
+    const before = structuredClone(t.p);
+    const q = structuredClone(t.p);
+    if (t.kind === 'step') {
+      const what = q.nextStep?.what ?? '';
+      delete q.nextStep;
+      await savePerson(q);
+      const act = await addActivity('action', '', [q.id], { title: `Done: ${what}` });
+      showToast(`Done: ${what}`, { label: 'Undo', run: async () => { await db.people.put(before); await db.activities.delete(act.id); } });
+    } else {
+      delete q.waitingSince;
+      await savePerson(q);
+      showToast('No longer waiting.', { label: 'Undo', run: async () => { await db.people.put(before); } });
+    }
+  };
+  const answer = async (idea: Idea, a: 'yes' | 'no') => {
+    const undo = await answerIdea(idea.id, a);
+    showToast(`${a === 'yes' ? 'Yes' : 'No'} — saved.`, { label: 'Undo', run: undo });
+  };
 
   return (
     <>
-      <TopBar title="ZivugBase" right={<SettingsButton />} />
+      {head}
       <main>
         <div class="search">
-          <input type="search" placeholder="Search people" aria-label="Search people" onFocus={() => go('/people?focus=1')} readOnly />
+          <input type="search" placeholder="Search everyone" aria-label="Search everyone" onFocus={() => go('/people?show=everyone&focus=1')} readOnly />
         </div>
+        <QuickActions />
 
-        {inboxNew > 0 && (
-          <button type="button" class="card wait" style="display:block;width:100%;text-align:start;cursor:pointer" onClick={() => go('/inbox')}>
-            <b>Inbox: {plural(inboxNew, 'new item')}</b> — file {inboxNew === 1 ? 'it' : 'them'}
-          </button>
-        )}
         {review && review.length > 0 && (
-          <button type="button" class="notice" style="display:block;width:100%;text-align:start;border:0;cursor:pointer" onClick={() => go('/import/review')}>
-            Finish the PeerMatch import: which girls were suggested to you? <b>Answer now</b>
-          </button>
+          <button type="button" class="notice slim" onClick={() => go('/import/review')}>Finish the PeerMatch import: which girls were suggested to you? <b>Answer</b></button>
         )}
         {draft && (
-          <button type="button" class="notice" style="display:block;width:100%;text-align:start;border:0;cursor:pointer" onClick={() => go('/person/new')}>
-            Continue adding {draftName || 'the new person'}? <b>Continue</b>
-          </button>
+          <button type="button" class="notice slim" onClick={() => go('/person/new')}>Continue adding {draftName || 'the new person'}? <b>Continue</b></button>
         )}
 
-        {live.length === 0 ? (
+        {live.length === 0 && !inbox?.length ? (
           <div class="empty">
             <p><b>No one here yet.</b></p>
-            <p>Share a WhatsApp message or PDF to ZivugBase, tap <b>Paste</b> below, or add someone.</p>
-            <div class="btn-row">
-              <button class="btn primary" type="button" onClick={() => go('/person/new')}>Add a person</button>
-              <button class="btn" type="button" onClick={() => go('/first-run')}>Restore or import</button>
-            </div>
+            <p>Copy a message in WhatsApp and tap <b>Paste</b> — or share a PDF to ZivugBase. It waits in the Inbox until you file it.</p>
+            <button class="btn" type="button" onClick={() => go('/first-run')}>Restore or import from PeerMatch</button>
           </div>
         ) : (
           <>
-            {ideas && ideas.length > 0 && (
-              <>
-                <h2 class="section-title" style="margin-top:18px">Ideas waiting for your answer</h2>
-                {ideas.slice(0, 10).map((i) => <IdeaRow key={i.id} idea={i} people={byId} />)}
-                {ideas.length > 10 && <p class="muted small">…and {ideas.length - 10} more (People → Suggested to me).</p>}
-              </>
-            )}
-            <h2 class="section-title" style="margin-top:18px">Today</h2>
-            {today.length === 0
-              ? <p class="muted">Nothing needs you today. Next steps and unanswered messages show up here.</p>
-              : today.map((t) => <TodayRow key={t.p.id + t.kind} item={t} waitDays={waitDays} />)}
+            <div class="stat-row">
+              {single ? (
+                <>
+                  <Stat n={count((p) => p.roles.includes('shadchan'))} label="Shadchanim" to="/people?show=shadchanim" />
+                  <Stat n={count((p) => p.roles.includes('single') && p.gender === 'f')} label="Girls" to="/people?show=girls" />
+                  <Stat n={inbox?.length ?? 0} label="Inbox" to="/inbox" warn={(inbox?.length ?? 0) > 0} />
+                </>
+              ) : (
+                <>
+                  <Stat n={count((p) => p.roles.includes('single') && p.gender === 'm')} label="Guys" to="/people?show=guys" />
+                  <Stat n={count((p) => p.roles.includes('single') && p.gender === 'f')} label="Girls" to="/people?show=girls" />
+                  <Stat n={inbox?.length ?? 0} label="Inbox" to="/inbox" warn={(inbox?.length ?? 0) > 0} />
+                </>
+              )}
+            </div>
 
-            <h2 class="section-title" style="margin-top:18px">Recently added</h2>
-            {recent.map((p) => <PersonRow key={p.id} p={p} waitDays={waitDays} sub={[relativeDay(p.createdAt), rowSub(p)].filter(Boolean).join(' · ')} />)}
+            {inbox && inbox.length > 0 && (
+              <Panel title="Inbox — to file" count={inbox.length} {...(inbox.length > 3 ? { more: { label: 'Open the Inbox', to: '/inbox' } } : {})}>
+                {inbox.slice(0, 3).map((i) => (
+                  <div key={i.id} class="mini-row">
+                    <button type="button" class="mini-main" onClick={() => go('/inbox/' + i.id)}>
+                      <span class="mini-avatar" aria-hidden="true">{SOURCE_ICON[i.source]}</span>
+                      <b class="bidi">{(i.title || i.text || 'File').replace(/\s+/g, ' ').slice(0, 80)}</b>
+                      <span class="mini-right">{relativeDay(i.receivedAt)}</span>
+                    </button>
+                  </div>
+                ))}
+              </Panel>
+            )}
+
+            {ideas && ideas.length > 0 && (
+              <Panel title="Ideas waiting for your answer" count={ideas.length} {...(ideas.length > 5 ? { more: { label: 'See all', to: '/people?show=suggested' } } : {})}>
+                {ideas.slice(0, 5).map((i) => {
+                  const her = byId.get(i.bId);
+                  if (!her) return null;
+                  const from = i.suggestedBy[0]?.personId ? byId.get(i.suggestedBy[0].personId) : undefined;
+                  return (
+                    <MiniRow key={i.id} p={her} right={[ageLabel(her.age, her.dob), from?.name].filter(Boolean).join(' · ')}>
+                      <button type="button" class="btn tiny primary" onClick={() => answer(i, 'yes')}>Yes</button>
+                      <button type="button" class="btn tiny" onClick={() => answer(i, 'no')}>No</button>
+                    </MiniRow>
+                  );
+                })}
+              </Panel>
+            )}
+
+            <Panel title="Calls due" count={due.length}>
+              {due.length ? due.map((t) => (
+                <MiniRow key={t.p.id} p={t.p} right={t.why.replace(/^.* — /, '')} warn>
+                  <button type="button" class="btn tiny" onClick={() => done(t)}>Done</button>
+                </MiniRow>
+              )) : <p class="empty small">Nothing to call today.</p>}
+            </Panel>
+
+            {waiting.length > 0 && (
+              <Panel title="Waiting on a reply" count={waiting.length}>
+                {waiting.slice(0, 8).map((t) => (
+                  <MiniRow key={t.p.id} p={t.p} right={t.why.replace('No answer in ', '').replace('Waiting for an answer (since an unknown date)', 'date unknown')} warn>
+                    <button type="button" class="btn tiny" onClick={() => done(t)}>Got it</button>
+                  </MiniRow>
+                ))}
+              </Panel>
+            )}
+
+            <Panel title="Recently added" count={recent.length}>
+              {recent.map((p) => <MiniRow key={p.id} p={p} right={relativeDay(p.createdAt) || rowSub(p)} />)}
+            </Panel>
+
+            {helpers > 0 && <button type="button" class="link-btn" onClick={() => go('/people?show=helpers')}>Helpers ({helpers})</button>}
+            {single && <button type="button" class="link-btn" style="margin-inline-start:12px" onClick={() => go('/people?show=everyone')}>Everyone ({live.length})</button>}
           </>
         )}
 
         {backup && live.length > 0 && (backup.changedSince || backup.lastAt) && (
-          <p class={`notice${backup.overdue ? ' warn' : ''}`}>
+          <p class={`backup-line${backup.overdue ? ' warn' : ''}`}>
             {backup.lastAt ? `Last backup: ${relativeDay(backup.lastAt).toLowerCase()}` : 'Not backed up yet'}
-            {backup.changedSince ? ' · ' : ''}
-            {backup.changedSince && <a href="#/settings" onClick={(e) => { e.preventDefault(); go('/settings'); }}>Back up now</a>}
+            {backup.changedSince && <> · <a href="#/settings" onClick={(e) => { e.preventDefault(); go('/settings'); }}>Back up now</a></>}
           </p>
         )}
       </main>
-      <CaptureBar />
     </>
   );
 }

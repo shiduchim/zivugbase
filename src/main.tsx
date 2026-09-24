@@ -17,7 +17,8 @@ async function boot() {
     fatal.value = 'This browser is not letting ZivugBase keep data (a private window, or storage turned off). Open it in a normal Chrome window.';
     return;
   }
-  mode.value = await getSetting<Mode | null>('mode', null);
+  const saved = await getSetting<Mode | null>('mode', null);
+  mode.value = saved === 'both' ? 'helping' : saved; /* "Both" became shadchan mode */
   drainIncoming().catch((e) => console.error('share queue', e));
   purgeTrash().catch((e) => console.error('purge', e));
   try {

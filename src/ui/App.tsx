@@ -23,9 +23,8 @@ export function App() {
 
   const [a, b, c] = r.path;
   let screen;
-  let capture = false;
   switch (a) {
-    case 'people': screen = <People />; capture = true; break;
+    case 'people': screen = <People />; break;
     case 'person':
       if (b === 'new') screen = <PersonEdit key="new" />;
       else if (b && c === 'edit') screen = <PersonEdit key={b} id={b} />;
@@ -33,15 +32,15 @@ export function App() {
       break;
     case 'inbox':
       if (b) screen = <InboxItemScreen key={b} id={b} />;
-      else { screen = <Inbox />; capture = true; }
+      else screen = <Inbox />;
       break;
     case 'capture': screen = <Capture key={b} kind={b ?? 'paste'} />; break;
     case 'settings': screen = <Settings />; break;
     case 'import': screen = <ImportReview />; break;
   }
-  if (!screen) { screen = <Home />; capture = true; }
+  if (!screen) screen = <Home />;
   return (
-    <div class={`app${capture ? ' with-capture' : ''}`}>
+    <div class="app">
       {screen}
       <TabBar />
       <ToastView />

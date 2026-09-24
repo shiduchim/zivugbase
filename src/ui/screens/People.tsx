@@ -9,7 +9,6 @@ import { go, mode, route } from '../../state';
 import { plural } from '../../text';
 import { Chips, Loading, PersonRow, SettingsButton, TopBar } from '../parts/common';
 import { WAIT_DAYS_DEFAULT } from '../describe';
-import { CaptureBar } from '../parts/CaptureBar';
 
 type Show = 'shadchanim' | 'girls' | 'guys' | 'helpers' | 'everyone' | 'suggested';
 
@@ -58,8 +57,10 @@ export function People() {
     go('/people?' + params, { replace: true });
   };
 
-  const options = (['shadchanim', 'girls', 'guys', ...(hasSuggested && mode.value !== 'helping' ? ['suggested' as const] : []), 'helpers', 'everyone'] as Show[])
-    .map((k) => ({ key: k, label: SHOW[k].label }));
+  /* Girls: all of them, or only those suggested to me. The other lists come from the tabs. */
+  const options = show === 'girls' || show === 'suggested'
+    ? (hasSuggested ? (['girls', 'suggested'] as Show[]).map((k) => ({ key: k, label: k === 'girls' ? 'All girls' : 'Suggested to me' })) : [])
+    : [];
 
   const searching = debounced.trim().length > 0;
   const favorites = searching ? [] : results.filter((p) => p.favorite);
@@ -70,7 +71,10 @@ export function People() {
 
   return (
     <>
-      <TopBar title="People" right={<SettingsButton />} />
+      <TopBar title={SHOW[show].label === 'Suggested to me' ? 'Girls suggested to me' : SHOW[show].label} right={<>
+        {SHOW[show].add && <button class="btn small" type="button" onClick={() => go('/person/new?' + SHOW[show].add)}>+ Add</button>}
+        <SettingsButton />
+      </>} />
       <main>
         <div class="search">
           <input
@@ -91,7 +95,7 @@ export function People() {
             ))}
           </div>
         )}
-        <div style="margin-top:10px"><Chips options={options} value={show} onChange={setShow} /></div>
+        {options.length > 0 && <div style="margin-top:8px"><Chips options={options} value={show} onChange={setShow} /></div>}
 
         {!all ? <Loading /> : (
           <>
@@ -134,15 +138,9 @@ export function People() {
               </nav>
             )}
 
-            {SHOW[show].add && results.length > 0 && (
-              <div style="margin-top:16px">
-                <button class="btn full" type="button" onClick={() => go('/person/new?' + SHOW[show].add)}>Add a{/^[aeiou]/i.test(noun[0]) ? 'n' : ''} {noun[0]}</button>
-              </div>
-            )}
           </>
         )}
       </main>
-      <CaptureBar />
     </>
   );
 }

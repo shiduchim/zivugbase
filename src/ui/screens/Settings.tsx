@@ -173,8 +173,8 @@ export function Settings() {
       <TopBar title="Settings" backTo="/home" />
       <main>
         <div class="card">
-          <h2>Who is this for?</h2>
-          {(['me', 'helping', 'both'] as Mode[]).map((m) => (
+          <h2>Mode</h2>
+          {(['me', 'helping'] as Mode[]).map((m) => (
             <button key={m} type="button" class={`chip${mode.value === m ? ' on' : ''}`} style="margin:0 6px 6px 0" aria-pressed={mode.value === m} onClick={async () => { await chooseMode(m); showToast('Changed. Nothing was lost.'); }}>{MODE_LABEL[m]}</button>
           ))}
         </div>

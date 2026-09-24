@@ -195,7 +195,7 @@ export function PersonScreen({ id }: { id: ID }) {
         <button type="button" class="btn small quiet" style="margin-top:8px" aria-pressed={p.favorite} onClick={toggleFavorite}>{p.favorite ? '★ Favorite' : '☆ Add to favorites'}</button>
 
         <StandsLine p={p} last={lastContact} onOpen={() => setSheet('stands')} />
-        {isSingle && isGirl && mode.value !== 'helping' && (
+        {isSingle && isGirl && (
           <div class="row" style="cursor:default;min-height:56px">
             <span class="body">Suggested to me?</span>
             <YesNo value={p.suggestedToMe ?? null} onChange={async (v) => {

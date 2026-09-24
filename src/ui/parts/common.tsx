@@ -1,7 +1,7 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useLayoutEffect, useRef } from 'preact/hooks';
 import type { Person } from '../../db/types';
-import { back, go, hideToast, pushLayer, route, toast } from '../../state';
+import { back, go, hideToast, mode, pushLayer, route, toast } from '../../state';
 import { useFileUrl } from '../../hooks';
 import { initials } from '../../lib/format';
 import { displayName, rowSide, rowSub } from '../describe';
@@ -10,7 +10,7 @@ export function TopBar({ title, backTo, right }: { title: ComponentChildren; bac
   return (
     <header class="topbar">
       {backTo !== undefined && (
-        <button class="btn quiet small back" type="button" onClick={() => back(backTo)}>Back</button>
+        <button class="back-arrow" type="button" aria-label="Back" onClick={() => back(backTo)}>←</button>
       )}
       <h1 class="bidi">{title}</h1>
       {right}
@@ -77,19 +77,21 @@ export function PersonRow({ p, waitDays, sub, onClick, noSide }: { p: Person; wa
   );
 }
 
+/* Tabs follow the mode: single → Home · Shadchanim; helping others → Home · Shadchanim · Guys · Girls. */
+let lastList = 'shadchanim';
 export function TabBar() {
-  const at = route.value.path[0] ?? 'home';
-  const tab = (key: string, label: string, to: string, match: string[]) => (
-    <a
-      href={'#' + to}
-      aria-current={match.includes(at) ? 'page' : undefined}
-      onClick={(e) => { e.preventDefault(); go(to); }}
-    >{label}</a>
-  );
+  const r = route.value;
+  const at = r.path[0] ?? 'home';
+  const tabs: [string, string, string][] = [['home', 'Home', '/home'], ['shadchanim', 'Shadchanim', '/people?show=shadchanim']];
+  if (mode.value !== 'me') tabs.push(['guys', 'Guys', '/people?show=guys'], ['girls', 'Girls', '/people?show=girls']);
+  if (at === 'people') lastList = r.query.get('show') ?? 'shadchanim';
+  const current = at === 'people' || at === 'person' ? lastList : 'home';
   return (
     <nav class="tabbar" aria-label="Main">
-      {tab('home', 'Home', '/home', ['home', 'inbox', 'capture'])}
-      {tab('people', 'People', '/people', ['people', 'person'])}
+      {tabs.map(([key, label, to]) => (
+        <a key={key} href={'#' + to} aria-current={current === key ? 'page' : undefined}
+          onClick={(e) => { e.preventDefault(); go(to); }}>{label}</a>
+      ))}
     </nav>
   );
 }

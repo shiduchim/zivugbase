@@ -77,7 +77,7 @@ export function BackupOpener({ file, onClose, onDone }: { file: Blob; onClose: (
     try {
       const r = await importPeerMatch(pm);
       await protectStorage();
-      if (r.review.length && mode.value !== 'helping') await setSetting('pendingReview', r.review);
+      if (r.review.length) await setSetting('pendingReview', r.review);
       await onDone?.();
       setStep({ s: 'imported', r });
     } catch (e) {
@@ -133,7 +133,7 @@ export function BackupOpener({ file, onClose, onDone }: { file: Blob; onClose: (
           {r.mergedCopies > 0 && <p class="muted small">{plural(r.mergedCopies, 'duplicate history copy', 'duplicate history copies')} from PeerMatch were joined into single entries.</p>}
           {r.alreadyThere > 0 && <p class="muted small">{plural(r.alreadyThere, 'record was', 'records were')} already here and left as they were.</p>}
           {added === 0 && <p>Nothing new to add.</p>}
-          {r.review.length > 0 && mode.value !== 'helping'
+          {r.review.length > 0
             ? <button class="btn primary full" type="button" onClick={() => { onClose(); go('/import/review'); }}>Next: which girls were suggested to you?</button>
             : <button class="btn primary full" type="button" onClick={() => { onClose(); go('/people'); }}>See the people</button>}
         </>

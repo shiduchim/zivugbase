@@ -7,7 +7,7 @@ import { useLive } from '../../hooks';
 import { dateTime, relativeDay } from '../../lib/format';
 import { go, route } from '../../state';
 import { Loading, SettingsButton, TopBar } from '../parts/common';
-import { CaptureBar } from '../parts/CaptureBar';
+import { QuickActions } from '../parts/CaptureBar';
 
 export function itemSummary(i: InboxItem, fileNames: Map<string, string>): string {
   const text = [i.title, i.text].filter(Boolean).join(' — ').replace(/\s+/g, ' ').trim();
@@ -59,6 +59,7 @@ export function Inbox() {
     <>
       <TopBar title="Inbox" backTo="/home" right={<SettingsButton />} />
       <main>
+        <QuickActions />
         {shared === '1' && (
           <div class="notice">
             <p style="margin-top:0"><b>Saved to Inbox ✓</b></p>
@@ -89,7 +90,6 @@ export function Inbox() {
           </>
         )}
       </main>
-      <CaptureBar />
     </>
   );
 }

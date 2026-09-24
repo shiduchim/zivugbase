@@ -8,14 +8,14 @@ import { Sheet, TopBar } from '../parts/common';
 import { BACKUP_ACCEPT, BackupOpener } from '../parts/BackupOpener';
 
 const MODE_HELP: Record<Mode, string> = {
-  me: 'Keep track of shadchanim, the ideas you get and the girls you’ve met or been offered.',
-  helping: 'Keep singles, shadchanim and the ideas you suggest between people.',
+  me: 'Your own search: shadchanim, the ideas you get, and the girls you were offered.',
+  helping: 'Also make shidduchim: guys and girls to set up, with your shadchanim.',
   both: 'Both: your own search, and the people you help.'
 };
 
 export async function chooseMode(m: Mode): Promise<void> {
   await setSetting('mode', m);
-  if (m !== 'helping') await ensureMe();
+  await ensureMe();
   mode.value = m;
 }
 
@@ -30,8 +30,8 @@ export function FirstRun() {
         <TopBar title="Welcome to ZivugBase" />
         <main>
           <p>Everything stays on this phone. Nothing is sent anywhere unless you send it.</p>
-          <h2 class="section-title">Who is this for?</h2>
-          {(['me', 'helping', 'both'] as Mode[]).map((m) => (
+          <h2 class="section-title">Which mode?</h2>
+          {(['me', 'helping'] as Mode[]).map((m) => (
             <button key={m} type="button" class="choice" onClick={() => { setPicked(m); setStep('start'); go('/first-run', { replace: true }); }}>
               <b>{MODE_LABEL[m]}</b>
               <span class="muted">{MODE_HELP[m]}</span>

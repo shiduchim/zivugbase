@@ -14,7 +14,8 @@ export const ROLE_LABEL: Record<Role, string> = {
 /* Roles a person can be given in the edit form ("me" is never picked by hand). */
 export const PICKABLE_ROLES: Role[] = ['single', 'shadchan', 'helper', 'contact', 'reference', 'friend'];
 
-export const MODE_LABEL: Record<Mode, string> = { me: 'Me — I’m single', helping: 'People I help', both: 'Both' };
+/* Two modes over the same data. The owner is single in both; shadchan mode adds guys and girls to set up. */
+export const MODE_LABEL: Record<Mode, string> = { me: 'Single mode', helping: 'Shadchan mode', both: 'Shadchan mode' };
 
 export const KIND_LABEL: Record<ActivityKind, string> = {
   note: 'Note',
