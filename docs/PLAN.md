@@ -3,7 +3,9 @@
 Stage 0 of a multi-stage rebuild. **No application code has been written for this plan yet.**
 This file is the handoff between stages: every later stage starts by reading it.
 
-Revision 2 — 2026-09-24. Reference app: PeerMatch v131 (`shiduchim/match`, `main` @ `7fdfced`).
+Revision 3 — 2026-09-24. Reference app: PeerMatch v131 (`shiduchim/match`, `main` @ `7fdfced`).
+Rev 3 adds: dating sites and platforms (§2.5), one card shared by both modes (§3.3),
+PeerMatch import mapping (§5.1), and the owner's answers to the rev 2 questions.
 
 ---
 
@@ -33,6 +35,10 @@ cloud — with an **optional** Android add-on for the few things a web app canno
 | 3 | Install | **No install by default**, so anyone can use it easily. Offer an **optional** install only for features that are really worth it (§9). |
 | 4 | Cloud | **No cloud service.** All data stays on the device. |
 | — | The #1 pain | "Info is sent to me outside the app and I don't like spending time entering info." → Capture-first design (§2). |
+| 5 | What PeerMatch's data is | PeerMatch's Girls are **single girls, some suggested to the owner**, tracked so they can also be **offered to friends**. → One card serves both modes (§3.3); import mapping in §5.1. |
+| 6 | App language | **English for now.** App text kept in one place so Hebrew/Russian can be added later. |
+| 7 | Voice to text | **Transcribe**, using Chrome's recognition (on-device when available, otherwise Google's). |
+| — | Dating sites | Ideas also come from **SawYouAtSinai, ChabadMatch, BasheretNow** and similar. Everyone contacted there must be recorded quickly so they are **not offered again** (§2.5). |
 
 ---
 
@@ -107,6 +113,41 @@ Two platform facts shape this table:
    When you update the profile (edit text or attach the new PDF), the app shows
    **"11 shadchanim have an older version — send the new one?"** → one tap each, logged.
 
+### 2.5 Dating sites and platforms (SawYouAtSinai, ChabadMatch, BasheretNow…)
+
+**The goal:** everyone you already contacted, declined or were declined by on a site is in
+ZivugBase, so when anyone suggests her again, the app says so.
+
+**Each site is a *Source*** — recorded like a shadchan, so every offer shows where it came from
+(a site, a site's matchmaker, a shadchan, a friend). A person can carry her **site profile
+number / link** for each site she's on.
+
+**Getting a whole site's worth in at once — "Paste a list":**
+1. On the site, open the list (search results, your matches, people you contacted) →
+   **Select all → Copy**. (If the site is an app and won't copy: take **screenshots** of the list
+   and share them all at once — the text is read on the phone.)
+2. In ZivugBase → **Paste a list**. The app splits it into people and shows a table:
+   *23 people found* — first name/name, age, city, profile number where shown. Untick mistakes.
+3. One tap for all of them: **"Contacted on ChabadMatch — Sep 2026"** (or *Declined on
+   SawYouAtSinai*, *She declined*, *Went out*). Each becomes a light card + an offer in that
+   status. Duplicates with existing cards are merged only after you confirm.
+
+The first time for each site, a **sample paste** from you (names can be removed) lets the reader
+be tuned to that site's exact layout; after that it's automatic. Until then, the general list
+reader handles "name, age, city" lines, and **typing a quick list** (one person per line,
+`Chaya 26 Crown Heights`) is always available as a last resort.
+
+**When she is suggested again**, the warning uses what's known:
+- **Same site profile number or link** → certain: *"You contacted her on ChabadMatch, Sep 2026."*
+- **Same name** (across Hebrew/English/Russian spellings) + age + city → likely.
+- **Only age + city match** → shown as *possible* — important because **ChabadMatch hides
+  names from singles** (only approved shadchanim see them), so a ChabadMatch entry may have no
+  name. When a shadchan later gives her full name, one tap confirms *"same person"* and joins
+  the records, so it's certain from then on.
+
+**Email alerts** from sites ("You have a new match…") can be shared in like any email; the
+site is recognized from the text and set as the source automatically.
+
 ---
 
 ## 3. Two modes over one database
@@ -135,9 +176,10 @@ shared, so switching never loses anything. First launch asks: *I'm a single (guy
    · mode switch · version
 
 **Offers** (girls suggested to you — "previous girls sent or met" is a filter here)
-- Chips: **Active · Looking into · Dating · Went out · Declined · All**, plus *by shadchan*.
-- Row: her name, **current age**, city, who suggested (and "also by 2 others"), stage,
-  how long it has been waiting.
+- Chips: **Active · Looking into · Dating · Went out · Declined · Contacted on a site · All**,
+  plus *by source* (a shadchan or a site).
+- Row: her name, **current age**, city, source — shadchan or site (and "also by 2 others"),
+  stage, how long it has been waiting.
 - **Stages**: New → Looking into → **Yes** / **No** (a quick no is kept apart from a
   no after looking into, as MyShadchan does) / Maybe later → Waiting for her side → She said
   yes / no → **Dating** (date 1, 2, 3… with notes) → **Engaged** / **Ended** (who ended it, why).
@@ -178,6 +220,16 @@ The PeerMatch successor, restructured (details in revision 1's design, kept here
   already tried.
 - **Shadchanim list: kept.** In shadchan mode you still send cards to other shadchanim and
   receive cards from them; the list is where that network lives.
+
+### 3.3 One card, two uses
+A girl suggested **to you** may also be someone you'd suggest **to a friend**. She exists
+**once**, as one card:
+- in **single mode** she appears in *Offers*, with your own stage (looking into, declined,
+  went out…);
+- in **shadchan mode** she appears in *Girls*, available to suggest to your friends — with a
+  small private marker of your own history with her (*offered to you · you declined*), so
+  nothing embarrassing slips through.
+Friends you match are **Guy cards** in shadchan mode.
 
 ---
 
@@ -261,6 +313,22 @@ numbers local, WhatsApp international, +1 and others untouched · PeerMatch's de
   languages / PDF / photo. Powers "who has my profile" and repeat-send warnings.
 - **Activity** — one record with links (PeerMatch stored a shared event twice and needed
   `shareLinkId`, fingerprints and tombstones to keep the copies in sync; this removes that).
+- **Source** — where an offer or card came from: a shadchan (a Contact), a **site**
+  (SawYouAtSinai, ChabadMatch, BasheretNow, FindYourBashert, …), a site's matchmaker, a friend,
+  or yourself. Cards carry **site profile numbers / links** per site (`{site, profileId, url}`),
+  the strongest duplicate signal there is.
+
+### 5.1 Importing PeerMatch
+- **Shadchanim** → Contacts (role *shadchan*), with their full history, reminders, waiting
+  state and referral links.
+- **Girls** → Girl cards (shadchan mode). Because some were suggested **to you**, the import
+  ends with one quick screen: every girl with a **Yes / No — "was she suggested to me?"**
+  (pre-ticked where her history makes it likely, e.g. an incoming WhatsApp from a shadchan).
+  Yes → she also gets an Offer in single mode. This can be changed later per card.
+- **Guys** → Guy cards (your friends / people you match).
+- **History, photos, PDFs, audio** → Activities and Files, with their **real original dates**.
+- Every record also keeps an **untouched copy** of its PeerMatch fields.
+- Import can be repeated; records already imported are recognized, not duplicated.
 
 ---
 
@@ -321,7 +389,10 @@ Measured on v131 (75 live files, ~600 KB):
 1. **N** Inbox: Share-in queue, Paste (with WhatsApp sender detection), Voice note with
    transcript, Photo, Add from contacts; nothing ever overwritten.
 2. **N** Automatic detection, extraction (EN/HE/RU) and one-tap filing; triage screen.
-3. **N** Duplicate / "already suggested" / "already went out" warnings.
+3. **N** Duplicate / "already suggested" / "already went out" / **"already contacted on a
+   site"** warnings.
+3a. **N** **Sites as sources** + **Paste a list** (copy a site's list or share screenshots →
+   table → one status for all) + site profile numbers.
 4. **N** Single mode: Offers pipeline with stages, several suggesters, follow-ups.
 5. **N** Single mode: My profile with versions, "who has it", update checklist, send updates.
 6. **N** Shadchanim book: keep-in-touch intervals, has-my-profile, offers from them.
@@ -416,7 +487,7 @@ phone. Nothing is called device-verified until you test it.
 | Stage | Delivers | You test |
 |---|---|---|
 | **1. Foundation + capture** | Tooling, tests, CI gate; database; PeerMatch import; backup/restore; Home with capture bar; **Inbox** (Share-in queue, Paste with WhatsApp sender detection, Voice note, Photo); detection + extraction; triage screen; Shadchanim book; mode switch | Share 3 things in a row, paste a WhatsApp conversation, dictate a call note — all in the Inbox, nothing lost |
-| **2. Single mode** | Offers pipeline, duplicate / already-went-out warnings, several suggesters, follow-ups; **My profile** with versions and "who has it"; the one send service | File an email idea as an offer; update your profile and send the new version to everyone with the old one |
+| **2. Single mode** | Offers pipeline, duplicate / already-went-out / already-contacted warnings, several suggesters, follow-ups; **sites as sources + Paste a list**; the PeerMatch "suggested to me?" screen; **My profile** with versions and "who has it"; the one send service | Paste your ChabadMatch list and mark it contacted; file an email idea and get warned it's a repeat; send your updated profile to everyone with the old one |
 | **3. Tracking** | Action items on Home, keep-in-touch intervals, post-call popup, references, dates log, shadchan stats, templates, calendar reminders | A week of real use |
 | **4. Shadchan mode** | Guys / Girls / Shidduchim, Make Match → Suggestion, Sent-to, filters, Lists, Find matches; full PeerMatch parity | Your PeerMatch data working in shadchan mode |
 | **5. Polish for anyone** | Hebrew + Russian app text, WhatsApp chat import, guided voice, translation, password-protected backups, PIN | Hand it to someone else |
@@ -424,16 +495,16 @@ phone. Nothing is called device-verified until you test it.
 
 ---
 
-## 12. Open questions for the next round
+## 12. Status of open questions
 
-1. **PeerMatch import.** Are the Girls in PeerMatch mostly girls suggested **for you**, or girls
-   you were matching **for others**? This decides whether they import into single mode as your
-   offers or into shadchan mode. (A per-record "move to my offers" action will exist either way.)
-2. **App language.** English first, with Hebrew and Russian in Stage 5 — or is Hebrew needed
-   from the start?
-3. **Voice notes.** If your phone cannot transcribe on-device, Chrome sends the audio to Google
-   to transcribe it (PeerMatch's voice features already work this way). OK, or should voice
-   notes stay audio-only in that case?
+Rev 2's three questions are answered (§1, rows 5–7). Remaining:
+1. **Go-ahead for Stage 1.**
+2. **One sample per site** (SawYouAtSinai, ChabadMatch, BasheretNow): a copied list page or a
+   screenshot, names removed if preferred, to tune *Paste a list* for that site. Needed by
+   Stage 2, not Stage 1.
+3. **One settings switch when Stage 1 is ready:** the new app has a build step, so GitHub Pages
+   must be set to deploy from **GitHub Actions** (Settings → Pages → Source). Until then the
+   old prototype keeps serving.
 
 ---
 
@@ -446,6 +517,8 @@ phone. Nothing is called device-verified until you test it.
 - Shadchan Pro — https://www.shadchanpro.com/
 - SawYouAtSinai — https://en.wikipedia.org/wiki/SawYouAtSinai
 - ZUUG — https://zuug.app/
+- ChabadMatch FAQ (singles see no names) — https://www.chabadmatch.com/about.php
+- BasheretNow — https://jewishjournal.com/community/327779/new-jewish-dating-app-basheret-allows-users-to-play-matchmaker-re-define-online-dating/
 - Between Carpools — https://betweencarpools.com/organize-keep-track-of-resumes/
 - Shidduch resume sections — https://shidduchim101.com/writing-shidduch-resumes/
 - WhatsApp copy includes sender and time — https://www.guidingtech.com/whatsapp-forward-tricks/
