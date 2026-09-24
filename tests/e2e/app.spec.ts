@@ -34,8 +34,8 @@ test('PeerMatch import, review, Home, search, person, backup and restore', async
   await shot(page, '03-review');
   await page.getByRole('button', { name: /Save \(1 Yes\)/ }).click();
   await expect(page.getByRole('button', { name: 'Suggested to me', pressed: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Chaya Example/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Leah Example/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Chaya Example/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Leah Example/ })).toHaveCount(0);
 
   /* Home: the imported call reminder is in Today, two days late. */
   await page.getByRole('link', { name: 'Home' }).click();
@@ -69,15 +69,15 @@ test('PeerMatch import, review, Home, search, person, backup and restore', async
   await page.goto('./#/people?show=everyone');
   await page.getByLabel('Search people').fill('29');
   await expect(page.getByRole('button', { name: /Age about 29/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Chaya Example/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Dovid Example/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Chaya Example/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Dovid Example/ })).toHaveCount(0);
   await shot(page, '05-search');
   await page.getByLabel('Search people').fill('rivka');
-  await expect(page.getByRole('button', { name: /Rivka Example/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Rivka Example/ })).toBeVisible();
   await page.getByLabel('Search people').fill('');
 
   /* The person screen */
-  await page.getByRole('button', { name: /Chaya Example/ }).click();
+  await page.getByRole('button', { name: /^Chaya Example/ }).click();
   await expect(page.getByRole('heading', { name: /Chaya Example/ }).first()).toBeVisible();
   await expect(page.getByText('A kind, learning guy')).toBeVisible();
   await expect(page.getByText('Up to age 35')).toBeVisible();
@@ -98,11 +98,8 @@ test('PeerMatch import, review, Home, search, person, backup and restore', async
   await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
   await expect(page.getByText('Next: Send profile tomorrow')).toBeVisible();
 
-  /* A note on the timeline, then delete it and Undo */
-  const tl = page.locator('details', { has: page.locator('summary', { hasText: 'Timeline' }) });
-  if ((await tl.getAttribute('open')) === null) await tl.locator('summary').click();
-  await page.getByRole('button', { name: 'Add a note' }).click();
-  await page.getByRole('dialog').locator('textarea').fill('Her mother said to call after Sukkos');
+  /* A note from the bottom note bar, shown under History */
+  await page.getByPlaceholder('Note…').fill('Her mother said to call after Sukkos');
   await page.getByRole('button', { name: 'Save note' }).click();
   await expect(page.getByText('Her mother said to call after Sukkos')).toBeVisible();
   await shot(page, '07-person-timeline');
@@ -111,9 +108,10 @@ test('PeerMatch import, review, Home, search, person, backup and restore', async
   await page.getByRole('button', { name: 'Delete Chaya Example' }).click();
   await page.getByRole('button', { name: 'Undo' }).click();
   await page.goto('./#/people?show=everyone');
-  await expect(page.getByRole('button', { name: /Chaya Example/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Chaya Example/ })).toBeVisible();
 
-  /* Backup: save the zip, then restore it (with Undo available). */
+  /* Backup: save the zip, then restore it (with Undo available). Settings is on Home only. */
+  await page.getByRole('link', { name: 'Home' }).click();
   await page.getByRole('button', { name: 'Settings' }).click();
   await shot(page, '08-settings');
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Save to this phone' }).click()]);
@@ -161,8 +159,9 @@ test('Paste → Inbox → new person, then find her by city and age', async ({ p
   await expect(page.getByRole('button', { name: 'Call' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'SMS' })).toBeVisible();
 
-  /* The Inbox is empty again; the item is kept under "Filed". */
-  await page.getByRole('link', { name: 'Home' }).click();
+  /* The Inbox is empty again; the item is kept under "Filed". A person's page has no tabs. */
+  await page.getByRole('button', { name: 'Back' }).click();
+  await page.goto('./#/home');
   await expect(page.getByText('Inbox — to file')).toHaveCount(0);
   /* Helping mode: Shadchanim, Guys and Girls tabs. */
   await expect(page.getByRole('link', { name: 'Girls' })).toBeVisible();

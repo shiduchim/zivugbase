@@ -1,6 +1,6 @@
 /* The person screen (PLAN §6.3): banner · where things stand · Call → Email → WhatsApp → SMS ·
    profile · looking for · resume & photos · collapsed sections with counts · added date. */
-import { useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { ComponentChildren } from 'preact';
 import { db } from '../../db/db';
 import { addActivity, ensureMe, ideasFor, saveFile, savePerson, softDeletePerson, timeline } from '../../db/repo';
@@ -10,18 +10,17 @@ import { useLive } from '../../hooks';
 import { ageLabel } from '../../lib/age';
 import { dateTime, relativeDay, shortDate } from '../../lib/format';
 import { displayPhone } from '../../lib/phone';
-import { back, go, mode, reportError, showToast } from '../../state';
+import { back, go, reportError, showToast } from '../../state';
 import { CAME_FROM_LABEL, CHANNEL_LABEL, FACT_LABEL, HOW_WELL_LABEL, IDEA_STATUS, KIND_LABEL, OK_TO_SHARE_LABEL, ROLE_LABEL } from '../../text';
-import { Avatar, Loading, Sheet, TopBar, Viewer, YesNo } from '../parts/common';
+import { Loading, Sheet, TopBar, Viewer, YesNo } from '../parts/common';
 import { FileList } from '../parts/Files';
 import { StandsSheet } from '../parts/StandsSheet';
-import { SpeechBox } from '../parts/Speech';
-import { canRecord, Recorder } from '../parts/Recorder';
+import { canRecord, pickType } from '../parts/Recorder';
 import { call, canSms, canWhatsApp, email, phoneLabel, sms, whatsapp } from '../contact';
 import { displayName, waitingText, whenText } from '../describe';
 import { useFileUrl } from '../../hooks';
 
-type SheetKind = 'stands' | 'note' | 'record' | 'call' | 'whatsapp' | 'sms' | 'email' | null;
+type SheetKind = 'stands' | 'call' | 'whatsapp' | 'sms' | 'email' | null;
 
 function Section({ title, count, children, open }: { title: string; count?: number; children: ComponentChildren; open?: boolean }) {
   return (
@@ -38,14 +37,25 @@ function NameLink({ id, people, fallback = 'someone' }: { id: ID; people: Map<ID
   return <a href={'#/person/' + id} onClick={(e) => { e.preventDefault(); go('/person/' + id); }}>{displayName(p)}</a>;
 }
 
-function PhotoButton({ p }: { p: Person }) {
-  const [open, setOpen] = useState(false);
-  const { url } = useFileUrl(open ? p.photoFileIds[0] : undefined);
+/* PeerMatch's detail header: round back · name · photo · ב״ה over Edit. Stays at the top. */
+function DetailHead({ p }: { p: Person }) {
+  const [view, setView] = useState(false);
+  const isGirl = p.gender === 'f';
+  const hasPhoto = p.photoFileIds.length > 0;
+  const tile = useFileUrl(!isGirl && hasPhoto ? p.photoFileIds[0] : undefined, true);
+  const full = useFileUrl(view ? p.photoFileIds[0] : undefined);
   return (
-    <>
-      <button type="button" class="btn small quiet" onClick={() => setOpen(true)}>Photo</button>
-      {open && url && <Viewer url={url} onClose={() => setOpen(false)} />}
-    </>
+    <header class="dhead">
+      <button class="roundback" type="button" aria-label="Back" onClick={() => back('/people')}>‹</button>
+      <h1 class="bidi" dir="auto">{displayName(p)}</h1>
+      {tile.url && <button class="tile" type="button" aria-label="Open the photo" onClick={() => setView(true)}><img src={tile.url} alt="" /></button>}
+      {isGirl && hasPhoto && <button class="lb sm" type="button" style="padding:4px 10px" onClick={() => setView(true)}>Photo</button>}
+      <div class="edit">
+        <span class="bh">ב״ה</span>
+        <button class="lb" type="button" onClick={() => go(`/person/${p.id}/edit`)}>Edit</button>
+      </div>
+      {view && full.url && <Viewer url={full.url} onClose={() => setView(false)} />}
+    </header>
   );
 }
 
@@ -64,24 +74,91 @@ function StandsLine({ p, last, onOpen }: { p: Person; last?: number; onOpen: () 
   );
 }
 
-function Event({ a, selfId, people }: { a: Activity; selfId: ID; people: Map<ID, Person> | undefined }) {
+const OUTGOING = new Set(['message-out', 'profile-sent']);
+
+function HCard({ a, selfId, people }: { a: Activity; selfId: ID; people: Map<ID, Person> | undefined }) {
   const others = a.linkKeys.filter((k) => k.startsWith('p:') && k !== 'p:' + selfId).map((k) => k.slice(2));
-  const title = [a.title || KIND_LABEL[a.kind], a.channel && !(a.title ?? '').toLowerCase().includes((CHANNEL_LABEL[a.channel] ?? a.channel).toLowerCase()) ? CHANNEL_LABEL[a.channel] ?? a.channel : ''].filter(Boolean).join(' · ');
+  const channel = a.channel ? CHANNEL_LABEL[a.channel] ?? a.channel : '';
+  const base = a.title || KIND_LABEL[a.kind];
+  const title = channel && !base.toLowerCase().includes(channel.toLowerCase()) ? `${base} · ${channel}` : base;
   const remove = async () => {
     await db.activities.update(a.id, { deletedAt: Date.now() });
     showToast('Entry deleted.', { label: 'Undo', run: async () => { await db.activities.update(a.id, { deletedAt: undefined }); } });
   };
   const answered = a.meta?.answered;
   return (
-    <div class="event">
-      <div class="head"><b>{title}</b><span>{a.at ? dateTime(a.at) : 'Date unknown'}</span></div>
-      {others.length > 0 && <div class="small muted">With {others.map((id, i) => <span key={id}>{i > 0 && ', '}<NameLink id={id} people={people} /></span>)}</div>}
+    <div class={`hcard${OUTGOING.has(a.kind) ? ' out' : ''}`}>
+      <div class="top">
+        <span class="what">{title}</span>
+        <span>{a.at ? dateTime(a.at) : 'Date unknown'}</span>
+        <button type="button" class="x" onClick={remove} aria-label={`Delete this entry: ${title}`}>Delete</button>
+      </div>
+      {others.length > 0 && <div class="to">{OUTGOING.has(a.kind) ? 'To: ' : 'With: '}{others.map((id, i) => <span key={id}>{i > 0 && ', '}<NameLink id={id} people={people} /></span>)}</div>}
       {typeof answered === 'boolean' && <div class="small">Answered: {answered ? 'Yes' : 'No'}</div>}
       {a.text && <div class="pre bidi" dir="auto">{a.text}</div>}
       {typeof a.meta?.transcript === 'string' && a.meta.transcript && <div class="pre bidi muted" dir="auto">{a.meta.transcript}</div>}
       {a.audioFileId && <FileList ids={[a.audioFileId]} />}
       {a.fileIds && a.fileIds.length > 0 && <FileList ids={a.fileIds} />}
-      <button type="button" class="del" onClick={remove}>Delete entry</button>
+    </div>
+  );
+}
+
+/* The note bar at the bottom, like WhatsApp: type and send, or tap the mic to record. */
+function Composer({ onNote, onAudio }: { onNote: (text: string) => Promise<void>; onAudio: (blob: Blob, seconds: number) => Promise<void> }) {
+  const [text, setText] = useState('');
+  const [rec, setRec] = useState<{ r: MediaRecorder; stream: MediaStream; t0: number }>();
+  const [secs, setSecs] = useState(0);
+  const chunks = useRef<Blob[]>([]);
+  useEffect(() => {
+    if (!rec) return;
+    const t = setInterval(() => setSecs(Math.round((Date.now() - rec.t0) / 1000)), 500);
+    return () => clearInterval(t);
+  }, [rec]);
+  useEffect(() => () => { rec?.stream.getTracks().forEach((t) => t.stop()); }, [rec]);
+
+  const start = async () => {
+    let stream: MediaStream;
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch {
+      showToast('The microphone isn’t allowed. Allow it in Chrome’s site settings.');
+      return;
+    }
+    const type = pickType();
+    const r = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
+    chunks.current = [];
+    r.ondataavailable = (e) => { if (e.data.size) chunks.current.push(e.data); };
+    r.start(1000);
+    setSecs(0);
+    setRec({ r, stream, t0: Date.now() });
+  };
+  const stop = () => {
+    if (!rec) return;
+    const { r, stream, t0 } = rec;
+    r.onstop = () => {
+      stream.getTracks().forEach((t) => t.stop());
+      const blob = new Blob(chunks.current, { type: r.mimeType || 'audio/webm' });
+      if (blob.size) void onAudio(blob, Math.round((Date.now() - t0) / 1000));
+    };
+    r.stop();
+    setRec(undefined);
+  };
+  const send = async () => {
+    const t = text.trim();
+    if (!t) return;
+    await onNote(t);
+    setText('');
+  };
+
+  const mmss = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+  return (
+    <div class="composer">
+      {rec
+        ? <span class="recnote" aria-live="polite">Recording… {mmss} — tap ■ to save</span>
+        : <input type="text" dir="auto" placeholder="Note…" aria-label="Note" value={text} onInput={(e) => setText(e.currentTarget.value)} onKeyDown={(e) => { if (e.key === 'Enter') void send(); }} />}
+      {rec
+        ? <button type="button" class="go rec" aria-label="Stop and save the voice note" onClick={stop}>■</button>
+        : text.trim()
+          ? <button type="button" class="go" aria-label="Save note" onClick={send}>➤</button>
+          : canRecord() && <button type="button" class="go" aria-label="Record a voice note" onClick={start}>🎙</button>}
     </div>
   );
 }
@@ -92,7 +169,6 @@ export function PersonScreen({ id }: { id: ID }) {
   const ideas = useLive(() => ideasFor(id), [id]);
   const contactOf = useLive(() => db.people.filter((x) => !x.deletedAt && x.contactPeople.some((c) => c.personId === id)).toArray(), [id]);
   const [sheet, setSheet] = useState<SheetKind>(null);
-  const [note, setNote] = useState('');
 
   const refIds = useMemo(() => {
     const s = new Set<ID>();
@@ -137,7 +213,14 @@ export function PersonScreen({ id }: { id: ID }) {
     } else setSheet(kind);
   };
 
-  const toggleFavorite = async () => { await savePerson({ ...structuredClone(p), favorite: !p.favorite }); };
+  const waiting = p.waitingSince !== undefined;
+  const need = (what: string) => showToast(`Add ${what} first — tap Edit.`);
+  const toggleWaiting = async () => {
+    const q = structuredClone(p);
+    if (waiting) delete q.waitingSince; else q.waitingSince = Date.now();
+    await savePerson(q);
+    await addActivity('status', '', [p.id], { title: waiting ? 'Reply received' : 'Waiting for reply' });
+  };
 
   const remove = async () => {
     const undo = await softDeletePerson(p.id);
@@ -145,11 +228,8 @@ export function PersonScreen({ id }: { id: ID }) {
     showToast(`${displayName(p)} deleted.`, { label: 'Undo', run: undo });
   };
 
-  const saveNote = async () => {
-    if (!note.trim()) return;
-    await addActivity('note', note.trim(), [p.id]);
-    setNote('');
-    setSheet(null);
+  const saveNote = async (text: string) => {
+    await addActivity('note', text, [p.id]);
     showToast('Note added.');
   };
 
@@ -172,27 +252,27 @@ export function PersonScreen({ id }: { id: ID }) {
 
   return (
     <>
-      <TopBar title={displayName(p)} backTo="/people" />
+      <DetailHead p={p} />
       <main>
-        <div class="banner">
-          <Avatar p={p} big />
-          <div class="who">
-            <h2 class="bidi" dir="auto">{displayName(p)}{p.favorite && <span class="star"> ★</span>}</h2>
-            <div class="muted">{[age, p.city].filter(Boolean).join(' · ')}</div>
-            <div class="chips wrap" style="padding:6px 0 0">
-              {p.roles.filter((r) => r !== 'me').map((r) => <span key={r} class="pill">{r === 'single' ? (isGirl ? 'Girl' : p.gender === 'm' ? 'Guy' : 'Single') : r === 'helper' && p.helperType ? p.helperType : ROLE_LABEL[r]}</span>)}
-              {p.kohen === true && <span class="pill">Kohen</span>}
-            </div>
-          </div>
-          <div style="display:flex;gap:6px;align-items:flex-end">
-            {isGirl && p.photoFileIds.length > 0 && <PhotoButton p={p} />}
-            <div class="edit">
-              <span class="bh">ב״ה</span>
-              <button class="btn small" type="button" onClick={() => go(`/person/${p.id}/edit`)}>Edit</button>
-            </div>
-          </div>
+        <div class="metapills">
+          {age && <span>Age {age}</span>}
+          {p.city && <span class="bidi">{p.city}</span>}
+          {p.roles.filter((r) => r !== 'me').map((r) => <span key={r}>{r === 'single' ? (isGirl ? 'Girl' : p.gender === 'm' ? 'Guy' : 'Single') : r === 'helper' && p.helperType ? p.helperType : ROLE_LABEL[r]}</span>)}
+          {p.kohen === true && <span>Kohen</span>}
+          {phones.some((ph) => ph.type === 'landline') && <span>Landline</span>}
+          {p.favorite && <span>★ Favorite</span>}
         </div>
-        <button type="button" class="btn small quiet" style="margin-top:8px" aria-pressed={p.favorite} onClick={toggleFavorite}>{p.favorite ? '★ Favorite' : '☆ Add to favorites'}</button>
+
+        <div class="crow">
+          <button class="lb" type="button" onClick={() => (phones.length ? act('call', phones) : need('a phone number'))}>Call</button>
+          <button class="lb" type="button" onClick={() => (p.emails.length === 1 ? email(p, p.emails[0]!) : p.emails.length ? setSheet('email') : need('an email'))}>Email</button>
+          <button class="lb" type="button" onClick={() => (waPhones.length ? act('whatsapp', waPhones) : need('a WhatsApp number'))}>WhatsApp</button>
+          <button class="lb" type="button" onClick={() => (smsPhones.length ? act('sms', smsPhones) : need(phones.length ? 'a mobile number (landlines can’t get SMS)' : 'a phone number'))}>SMS</button>
+          <button class={`lb ${waiting ? 'wait-on' : 'outline'}`} type="button" aria-pressed={waiting} onClick={toggleWaiting}>Waiting for reply</button>
+        </div>
+        {phones.length === 0 && p.emails.length === 0 && p.contactPeople.length > 0 && (
+          <p class="muted small">No number of their own — see Contact people below.</p>
+        )}
 
         <StandsLine p={p} last={lastContact} onOpen={() => setSheet('stands')} />
         {isSingle && isGirl && (
@@ -205,22 +285,9 @@ export function PersonScreen({ id }: { id: ID }) {
           </div>
         )}
 
-        {(phones.length > 0 || p.emails.length > 0) && (
-          <div class="actions">
-            {phones.length > 0 && <button class="btn primary" type="button" onClick={() => act('call', phones)}>Call</button>}
-            {p.emails.length > 0 && <button class="btn" type="button" onClick={() => (p.emails.length === 1 ? email(p, p.emails[0]!) : setSheet('email'))}>Email</button>}
-            {waPhones.length > 0 && <button class="btn" type="button" onClick={() => act('whatsapp', waPhones)}>WhatsApp</button>}
-            {smsPhones.length > 0 && <button class="btn" type="button" onClick={() => act('sms', smsPhones)}>SMS</button>}
-          </div>
-        )}
-        {phones.length === 0 && p.emails.length === 0 && p.contactPeople.length > 0 && (
-          <p class="muted small">No number of their own — see Contact people below.</p>
-        )}
-
         {p.profile.text && (
-          <div class="card">
-            <h2>{isSingle ? 'Profile' : 'About'}</h2>
-            <div class="pre bidi" dir="auto">{p.profile.text}</div>
+          <div class="pcardx">
+            <div class="pre bidi" dir="auto" style="line-height:1.5">{p.profile.text}</div>
           </div>
         )}
         {p.audioProfile && (
@@ -319,13 +386,8 @@ export function PersonScreen({ id }: { id: ID }) {
           </Section>
         )}
 
-        <Section title="Timeline" count={acts?.length ?? 0} open={(acts?.length ?? 0) > 0 && (acts?.length ?? 0) <= 5}>
-          <div class="btn-row" style="margin-bottom:8px">
-            <button class="btn small" type="button" onClick={() => setSheet('note')}>Add a note</button>
-            {canRecord() && <button class="btn small" type="button" onClick={() => setSheet('record')}>Record a voice note</button>}
-          </div>
-          {!acts ? <Loading /> : acts.length === 0 ? <p class="muted">Nothing yet. Calls, messages and notes show up here.</p> : acts.map((a) => <Event key={a.id} a={a} selfId={id} people={people} />)}
-        </Section>
+        <div class="band">History</div>
+        {!acts ? <Loading /> : acts.length === 0 ? <p class="muted small">Nothing yet. Calls, messages and notes show up here.</p> : acts.map((a) => <HCard key={a.id} a={a} selfId={id} people={people} />)}
 
         {p.notes && (
           <Section title="Private notes">
@@ -333,25 +395,12 @@ export function PersonScreen({ id }: { id: ID }) {
           </Section>
         )}
 
-        <p class="muted small" style="margin-top:20px">Added: {p.createdAt ? shortDate(p.createdAt) : 'date unknown'}{p.legacyKey?.startsWith('peermatch:') ? ' (in PeerMatch)' : ''}</p>
+        <p class="added">Added: {p.createdAt ? dateTime(p.createdAt) : 'date unknown'}{p.legacyKey?.startsWith('peermatch:') ? ' (in PeerMatch)' : ''}</p>
         <button class="btn danger" type="button" onClick={remove}>Delete {displayName(p)}</button>
       </main>
 
+      <Composer onNote={saveNote} onAudio={saveRecording} />
       {sheet === 'stands' && <StandsSheet p={p} onClose={() => setSheet(null)} />}
-      {sheet === 'note' && (
-        <Sheet title={`Note about ${displayName(p)}`} onClose={() => setSheet(null)}>
-          <SpeechBox value={note} onChange={setNote} rows={6} />
-          <div class="btn-row" style="margin-top:10px">
-            <button class="btn quiet" type="button" onClick={() => setSheet(null)}>Cancel</button>
-            <button class="btn primary" type="button" disabled={!note.trim()} onClick={saveNote}>Save note</button>
-          </div>
-        </Sheet>
-      )}
-      {sheet === 'record' && (
-        <Sheet title="Record a voice note" onClose={() => setSheet(null)}>
-          <Recorder onSave={saveRecording} onCancel={() => setSheet(null)} />
-        </Sheet>
-      )}
       {(sheet === 'call' || sheet === 'whatsapp' || sheet === 'sms') && (
         <Sheet title={sheet === 'call' ? 'Call which number?' : sheet === 'whatsapp' ? 'WhatsApp which number?' : 'SMS which number?'} onClose={() => setSheet(null)}>
           {(sheet === 'call' ? phones : sheet === 'whatsapp' ? waPhones : smsPhones).map((ph, i) => (

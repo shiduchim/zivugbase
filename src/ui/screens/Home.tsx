@@ -6,7 +6,7 @@ import { backupStatus } from '../../backup/backup';
 import { useLive } from '../../hooks';
 import { go, mode, showToast } from '../../state';
 import { initials, relativeDay, startOfDay } from '../../lib/format';
-import { SettingsButton, TopBar, Loading } from '../parts/common';
+import { AppHeader, SettingsButton, Loading } from '../parts/common';
 import { QuickActions } from '../parts/CaptureBar';
 import { displayName, rowSub, waitingDays, whenText, WAIT_DAYS_DEFAULT } from '../describe';
 import type { ReviewRow } from '../../import/peermatch';
@@ -78,7 +78,7 @@ export function Home() {
     return (await db.ideas.where('aId').equals(me.id).toArray()).filter((i) => !i.deletedAt && !i.legacyKey && (i.status === 'new' || i.status === 'looking-into')).sort((a, b) => b.createdAt - a.createdAt);
   }, []);
 
-  const head = <TopBar title="ZivugBase" right={<SettingsButton />} />;
+  const head = <AppHeader right={<SettingsButton />} />;
   if (!people) return <>{head}<main><Loading /></main></>;
 
   const live = people.filter((p) => !p.deletedAt && !p.roles.includes('me'));

@@ -18,6 +18,16 @@ export function TopBar({ title, backTo, right }: { title: ComponentChildren; bac
   );
 }
 
+/* The main tabs' header: just the name. Home adds the Settings button (and only Home). */
+export function AppHeader({ right }: { right?: ComponentChildren }) {
+  return (
+    <header class="apphead">
+      <span class="brand">ZivugBase</span>
+      {right}
+    </header>
+  );
+}
+
 export function SettingsButton() {
   return <button class="btn quiet small" type="button" onClick={() => go('/settings')}>Settings</button>;
 }

@@ -39,10 +39,12 @@ export function App() {
     case 'import': screen = <ImportReview />; break;
   }
   if (!screen) screen = <Home />;
+  /* A person's page is like PeerMatch's detail: no tabs, the note bar at the bottom instead. */
+  const detail = a === 'person' && !!b && b !== 'new' && !c;
   return (
-    <div class="app">
+    <div class={`app${detail ? ' detail' : ''}`}>
       {screen}
-      <TabBar />
+      {!detail && <TabBar />}
       <ToastView />
     </div>
   );

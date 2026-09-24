@@ -42,7 +42,8 @@ Decided 2026-09-24 with the owner.
 | 17 | Email | Hidden behind "+ Add email", because email is rare. |
 | 18 | Looking for | The cleaner layout, with **only "up to age"** (no minimum). |
 | 19 | Age | Kept as entered, and counted forward from the date it was entered. |
-| 20 | Suggested to me | Yes / No, on the person page **and** in the Add/Edit form for singles. It is set automatically when something is filed as "Idea for me". |
+| 20 | Header | ZivugBase's minimal header, with the name **ZivugBase** on every main tab. **Settings** is on **Home only**. |
+| 21 | Suggested to me | Yes / No, on the person page **and** in the Add/Edit form for singles. It is set automatically when something is filed as "Idea for me". |
 
 ## Folders
 
@@ -79,6 +80,10 @@ everything links together."
 
   Each link opens the other record. One action (a share, a call note, a match offer) appears in
   the History of every record it links to.
+
+## Progress
+
+- Step 1 (the look) is built. It still has to be checked on the phone.
 
 ## Order of work
 
