@@ -1,7 +1,9 @@
 # ZivugBase — Claude Code project brief
 
-Read **`docs/PLAN.md`** first. It is the product design and the handoff between build stages.
-Every change must follow its **ten design principles (§2)**.
+Read **`docs/HANDOFF.md`** first — it is the current handoff (what PeerMatch has, which new
+features the owner chose, the architecture to keep, mistakes to avoid). Then `docs/REBUILD_PLAN.md`
+and, in `shiduchim/match`, `docs/REBUILD_INVENTORY.md`. `docs/PLAN.md` is the older full design;
+its ten design principles (§2) still apply.
 
 ZivugBase is a free, private, capture-first shidduch organizer: a web app (PWA) that keeps all
 data on the user's own device. Its predecessor is PeerMatch (`shiduchim/match`), which stays
