@@ -5,7 +5,8 @@
 # from the ZivugBase site.
 set -euo pipefail
 OUT="$1"
-BT="$ANDROID_HOME/build-tools/35.0.0"
+SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+BT="$SDK/build-tools/35.0.0"
 gradle -p android :app:assembleRelease --no-daemon
 mkdir -p "$OUT"
 "$BT/zipalign" -p -f 4 android/app/build/outputs/apk/release/app-release-unsigned.apk /tmp/addon-aligned.apk
