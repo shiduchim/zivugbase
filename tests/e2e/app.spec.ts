@@ -165,6 +165,7 @@ test('Sharing into the app lands in the Inbox, one entry per share', async ({ pa
   await page.goto('./');
   await page.getByRole('button', { name: /Both/ }).click();
   await page.getByRole('button', { name: /Start fresh/ }).click();
+  await expect(page.getByText('No one here yet.')).toBeVisible(); /* the choice is saved before reloading */
   await page.evaluate(async () => { await navigator.serviceWorker.ready; });
   await page.reload();
   await page.waitForFunction(() => !!navigator.serviceWorker.controller);
