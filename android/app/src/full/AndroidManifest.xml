@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Only in the "full" add-on: the floating bubble (an accessibility service). -->
+<!-- Diagnostic build: the floating bubble inspects WhatsApp's accessibility tree. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
-        <!-- The floating bubble. It reads the screen only when you tap it. -->
         <service
             android:name=".BubbleService"
             android:exported="true"
@@ -15,5 +14,10 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/bubble_service" />
         </service>
+
+        <activity
+            android:name=".DiagnosticActivity"
+            android:exported="false"
+            android:label="WhatsApp Accessibility Test" />
     </application>
 </manifest>
