@@ -1,38 +1,19 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#315b78">
-<meta name="description" content="ZivugBase - a CRM-structured shidduch relationship tracker that keeps all data on your own device.">
+<meta name="theme-color" content="#2f5d7c">
+<meta name="description" content="ZivugBase — a private shidduch organizer. Everything stays on your phone.">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <title>ZivugBase</title>
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon.svg">
-<link rel="stylesheet" href="css/app.css">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 </head>
 <body>
-<div class="app">
-  <header class="topbar">
-    <div>
-      <div class="brand">ZivugBase</div>
-      <div class="brand-sub">Private shidduch tracker</div>
-    </div>
-    <button id="global-search" class="btn btn-soft btn-sm" aria-label="Search everything">Search</button>
-  </header>
-
-  <main id="screen" aria-live="polite"></main>
-
-  <nav aria-label="Sections">
-    <button data-screen="today">Today</button>
-    <button data-screen="guys">Guys</button>
-    <button data-screen="girls">Girls</button>
-    <button data-screen="shadchanim">Shadchanim</button>
-    <button data-screen="data">Data</button>
-  </nav>
-</div>
-
-<div id="modal" class="modal hidden"><div id="sheet" class="sheet" role="dialog" aria-modal="true"></div></div>
-
-<script type="module" src="js/main.js"></script>
+<div id="app"></div>
+<noscript>ZivugBase needs JavaScript turned on.</noscript>
+<script type="module" src="/src/main.tsx"></script>
 </body>
 </html>
