@@ -2,6 +2,7 @@ package org.zivugbase.addon;
 
 import android.accessibilityservice.AccessibilityService;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.PixelFormat;
 import android.graphics.drawable.GradientDrawable;
@@ -15,22 +16,16 @@ import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.regex.Pattern;
 
-/** The floating "Z" bubble. Tap: the text on the screen opens in ZivugBase. Drag: move it.
- *  Nothing is read until the bubble is tapped, and nothing is kept here. */
+/** Temporary diagnostic version: tapping Z dumps exactly what the Accessibility API exposes. */
 public class BubbleService extends AccessibilityService {
     static BubbleService running;
 
     private WindowManager wm;
     private TextView bubble;
     private WindowManager.LayoutParams lp;
-
-    private static final Pattern TIME_ONLY = Pattern.compile("^\\d{1,2}:\\d{2}(\\s?[AaPp][Mm])?$");
 
     static SharedPreferences prefs(Context c) {
         return c.getSharedPreferences("bubble", MODE_PRIVATE);
@@ -43,14 +38,14 @@ public class BubbleService extends AccessibilityService {
     }
 
     @Override
-    public boolean onUnbind(android.content.Intent intent) {
+    public boolean onUnbind(Intent intent) {
         hide();
         running = null;
         return super.onUnbind(intent);
     }
 
     @Override
-    public void onAccessibilityEvent(AccessibilityEvent event) { /* not used: the screen is read only on tap */ }
+    public void onAccessibilityEvent(AccessibilityEvent event) { }
 
     @Override
     public void onInterrupt() {}
@@ -67,7 +62,7 @@ public class BubbleService extends AccessibilityService {
         bubble.setTextSize(22);
         bubble.setTextColor(0xFFFFFFFF);
         bubble.setGravity(Gravity.CENTER);
-        bubble.setContentDescription("Save to ZivugBase");
+        bubble.setContentDescription("Accessibility diagnostic");
         GradientDrawable bg = new GradientDrawable();
         bg.setShape(GradientDrawable.OVAL);
         bg.setColor(0xE62F5D7C);
@@ -122,51 +117,126 @@ public class BubbleService extends AccessibilityService {
         bubble = null;
     }
 
-    /** Reads the screen under the bubble. In WhatsApp: the chat's name and the visible messages;
-     *  elsewhere: all visible text. */
     private void capture() {
         AccessibilityNodeInfo root = getRootInActiveWindow();
         if (root == null) {
-            Toast.makeText(this, "Nothing to read on this screen.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Nothing to inspect on this screen.", Toast.LENGTH_SHORT).show();
             return;
         }
+
         String pkg = root.getPackageName() == null ? "" : root.getPackageName().toString();
         if (pkg.equals(getPackageName())) return;
 
-        String sender = null;
-        List<String> lines = new ArrayList<>();
+        StringBuilder out = new StringBuilder();
+        out.append("ZIVUGBASE ACCESSIBILITY DIAGNOSTIC\n");
+        out.append("================================\n");
+        out.append("Package: ").append(pkg).append("\n");
+        out.append("Root class: ").append(safeClass(root)).append("\n\n");
+
         if (pkg.startsWith("com.whatsapp")) {
-            sender = firstText(root, pkg + ":id/conversation_contact_name");
-            for (AccessibilityNodeInfo n : root.findAccessibilityNodeInfosByViewId(pkg + ":id/message_text")) {
-                if (n.getText() != null) lines.add(n.getText().toString());
-            }
+            out.append("WHATSAPP-SPECIFIC CHECKS\n");
+            out.append("------------------------\n");
+            dumpViewIdMatches(root, pkg + ":id/conversation_contact_name", out, "conversation_contact_name");
+            dumpViewIdMatches(root, pkg + ":id/message_text", out, "message_text");
+            out.append("\n");
         }
-        if (lines.isEmpty()) {
-            Set<String> seen = new LinkedHashSet<>();
-            walk(root, seen, 0);
-            lines.addAll(seen);
+
+        out.append("FULL ACCESSIBILITY NODE TREE\n");
+        out.append("----------------------------\n");
+        int[] count = new int[] {0, 0};
+        dumpNode(root, out, 0, count);
+
+        out.append("\nSUMMARY\n");
+        out.append("-------\n");
+        out.append("Nodes visited: ").append(count[0]).append("\n");
+        out.append("Text-bearing nodes: ").append(count[1]).append("\n");
+        out.append("Compare text in nodes marked visible=false with visible=true nodes.\n");
+        out.append("If a long WhatsApp message appears as one complete message_text node even when part is off-screen, the complete text is accessible without scrolling.\n");
+
+        if (out.length() > 350000) {
+            out.setLength(350000);
+            out.append("\n\n[DIAGNOSTIC OUTPUT TRUNCATED AT 350,000 CHARACTERS]\n");
         }
-        String text = android.text.TextUtils.join("\n", lines).trim();
-        if (text.isEmpty()) {
-            Toast.makeText(this, "No text found on this screen.", Toast.LENGTH_SHORT).show();
+
+        getSharedPreferences("diagnostic", MODE_PRIVATE)
+                .edit()
+                .putString("dump", out.toString())
+                .putString("package", pkg)
+                .apply();
+
+        Intent i = new Intent(this, DiagnosticActivity.class);
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        startActivity(i);
+    }
+
+    private void dumpViewIdMatches(AccessibilityNodeInfo root, String viewId, StringBuilder out, String label) {
+        List<AccessibilityNodeInfo> nodes;
+        try {
+            nodes = root.findAccessibilityNodeInfosByViewId(viewId);
+        } catch (Exception e) {
+            out.append(label).append(": ERROR ").append(e).append("\n");
             return;
         }
-        Links.openPaste(this, text, sender);
+
+        out.append(label).append(" nodes: ").append(nodes.size()).append("\n");
+        for (int i = 0; i < nodes.size(); i++) {
+            AccessibilityNodeInfo n = nodes.get(i);
+            out.append("  [").append(i).append("] ");
+            appendNodeDetails(n, out);
+            out.append("\n");
+        }
     }
 
-    private static String firstText(AccessibilityNodeInfo root, String viewId) {
-        for (AccessibilityNodeInfo n : root.findAccessibilityNodeInfosByViewId(viewId)) {
-            if (n.getText() != null && n.getText().length() > 0) return n.getText().toString();
+    private void dumpNode(AccessibilityNodeInfo n, StringBuilder out, int depth, int[] count) {
+        if (n == null || depth > 50 || out.length() > 345000) return;
+        count[0]++;
+
+        boolean hasText = n.getText() != null || n.getContentDescription() != null;
+        if (hasText) count[1]++;
+
+        for (int i = 0; i < depth; i++) out.append("  ");
+        out.append("[").append(count[0]).append("] ");
+        appendNodeDetails(n, out);
+        out.append("\n");
+
+        for (int i = 0; i < n.getChildCount(); i++) {
+            dumpNode(n.getChild(i), out, depth + 1, count);
         }
-        return null;
     }
 
-    private static void walk(AccessibilityNodeInfo n, Set<String> out, int depth) {
-        if (n == null || depth > 40) return;
-        if (n.isVisibleToUser() && n.getText() != null) {
-            String t = n.getText().toString().trim();
-            if (!t.isEmpty() && !TIME_ONLY.matcher(t).matches()) out.add(t);
+    private void appendNodeDetails(AccessibilityNodeInfo n, StringBuilder out) {
+        out.append("class=").append(safeClass(n));
+        out.append(" visible=").append(n.isVisibleToUser());
+        out.append(" scrollable=").append(n.isScrollable());
+        out.append(" enabled=").append(n.isEnabled());
+        out.append(" children=").append(n.getChildCount());
+
+        try {
+            String id = n.getViewIdResourceName();
+            if (id != null) out.append(" viewId=").append(id);
+        } catch (Exception ignored) {}
+
+        android.graphics.Rect r = new android.graphics.Rect();
+        n.getBoundsInScreen(r);
+        out.append(" bounds=").append(r.toShortString());
+
+        CharSequence text = n.getText();
+        if (text != null) out.append(" text=").append(escape(text.toString()));
+
+        CharSequence desc = n.getContentDescription();
+        if (desc != null) out.append(" contentDescription=").append(escape(desc.toString()));
+    }
+
+    private static String safeClass(AccessibilityNodeInfo n) {
+        try {
+            CharSequence c = n.getClassName();
+            return c == null ? "" : c.toString();
+        } catch (Exception e) {
+            return "?";
         }
-        for (int i = 0; i < n.getChildCount(); i++) walk(n.getChild(i), out, depth + 1);
+    }
+
+    private static String escape(String s) {
+        return s.replace("\r", "\\r").replace("\n", "\\n");
     }
 }
