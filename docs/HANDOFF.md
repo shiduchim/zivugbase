@@ -321,7 +321,7 @@ listeners.**
    stored settings as strings.
 8. **A scratch screenshot test was committed** and failed CI, which blocked a deploy. Keep scratch
    files out of `tests/e2e`.
-9. **The privacy check read `rgb(246 245 242)` as a phone number.** Use hex colors.
+9. **The privacy check read an `rgb(...)` color with three numbers as a phone number.** Use hex colors.
 10. **Two open policy questions to settle with the owner:**
     - The repo's own `CLAUDE.md` says "no CDNs at runtime". The OCR tool (Tesseract) is loaded from
       jsDelivr, and the translate fallback calls Google. Both copy PeerMatch, and the owner asked
