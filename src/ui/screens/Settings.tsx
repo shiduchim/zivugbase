@@ -199,15 +199,12 @@ export function Settings() {
         </div>
 
         <div class="card" id="addon">
-          <h2>Android add-on: the “Z” bubble</h2>
-          <p style="margin-top:0">A small bubble floats over WhatsApp and every other app. Tap it in a chat and the messages on the screen open here, filled in, ready to Save. You can also select text anywhere and choose “ZivugBase”.</p>
-          <a class="btn primary full" href="addon/ZivugBase-addon.apk" download="ZivugBase-addon.apk">Download the add-on (Android)</a>
-          <ol class="small" style="padding-inline-start:20px">
-            <li>Open the downloaded file and tap Install (Android warns about apps from outside the Play Store — that’s expected).</li>
-            <li>Open “ZivugBase add-on” and tap “Turn on the bubble”. Turn on “ZivugBase bubble”.</li>
-            <li>If Android says the setting is restricted, follow step 2 in the add-on.</li>
-          </ol>
-          <p class="muted small">The bubble reads the screen only when you tap it. The add-on has no internet permission and can’t send anything anywhere. ZivugBase keeps working without it.</p>
+          <h2>Android add-on</h2>
+          <p style="margin-top:0"><b>Light (recommended to start):</b> select a profile’s text in WhatsApp or any app, then tap “ZivugBase” in the small menu — it opens here filled in, ready to Save. Needs no special permission.</p>
+          <a class="btn primary full" href="addon/ZivugBase-addon-lite.apk" download="ZivugBase-addon-lite.apk">Download the light add-on</a>
+          <p><b>With the “Z” bubble:</b> a bubble floats over every app; tap it in a chat and the messages on the screen open here. It needs Android’s Accessibility permission, so Google Play Protect may block installing it — if it does, turn off “Scan apps with Play Protect” (Play Store → your picture → Play Protect → ⚙) just while installing, then turn it back on.</p>
+          <a class="btn full" href="addon/ZivugBase-addon.apk" download="ZivugBase-addon.apk">Download the add-on with the bubble</a>
+          <p class="muted small">Install only one of them — installing the other replaces it. Neither has internet permission; neither can send anything anywhere. ZivugBase keeps working without them.</p>
         </div>
 
         <StorageCard />
