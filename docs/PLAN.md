@@ -1,6 +1,6 @@
 # ZivugBase — Product design and build plan
 
-Revision 7 — 2026-09-24. **Design only; no application code has been written for it yet.**
+Revision 10 — 2026-09-24. **Design only; no application code has been written for it yet.**
 This is the handoff between stages: every later stage starts by reading it, and code must follow
 the design principles in §2.
 
@@ -11,7 +11,12 @@ research round on simplicity, privacy, backup, accessibility, errors and real wo
 model is simplified and the whole plan is consolidated into one design** · rev 6 the
 understanding layer (§8.6): Received → Understood → Filed, nothing saved without a tap · rev 7
 a research round on how other apps capture information (§8.7): use the phone's own tools,
-highlight-in-place review, layout-aware PDF reading, proven libraries.
+highlight-in-place review, layout-aware PDF reading, proven libraries · rev 8 lessons from a real
+shadchan conversation (§8.8): language versions, Ready before they ask, Kohen check, export details ·
+rev 9 two more real chats (§8.8): referral bursts and batch follow-up, profiles naming other
+shadchanim, Save for friends, profile rendered into templates, how to reach them, what the
+referrer says, OK to share, phone-book names that carry categories · rev 10 a coach's chat: helpers
+and services (§9.1), how well I know them, disappearing-message warning.
 
 ---
 
@@ -169,7 +174,13 @@ never system words.
 date of birth → current age always right), city, phone(s) (mobile/landline), email,
 **profile** (text verbatim + **versions** with dates), **Resume** files, **Photos** (re-encoded,
 §12), **Looking for** + **age range sought**, **categories**, **contact people** (links),
-**where they came from** (+ referred by, date added), **site profile numbers** per dating site,
+**where they came from** (+ referred by, date added), **what the person who brought them says**
+(their own words, kept apart from the profile text) and **how they know them**, **how to reach
+them** (who to contact + rules like *messages only*, *no WhatsApp*, *only via a shadchan or a
+married person*), **Kohen: yes / no / unknown**, **OK to share: yes / only with … / ask first**
+(for cards from friends), **how well I know them** — *I know them personally* · *recommended by
+someone I trust* (who) · *just a card* — shown as a small marker on every single, **site profile
+numbers** per dating site,
 **next step**, favorite, lists, status (for singles: available · on hold · dating · engaged ·
 married), notes, untouched copy of any imported PeerMatch record.
 *Derived, never typed:* last contact, waiting since, talked by phone, who has their profile,
@@ -209,8 +220,9 @@ mode is only **which tabs show**. First run asks *"Who is this for?"* — **Me (
 | Ideas = ideas for me | Ideas = ideas between people | Ideas has chips *For me · For others* |
 | People opens on *Shadchanim* | People opens on *Singles* | People has chips |
 
-**People** always has chips across the top — *Shadchanim · Girls · Guys · Everyone* — one tab
-instead of three. Small bottom tabs, with words.
+**People** always has chips across the top — *Shadchanim · Girls · Guys · Helpers · Everyone* — one
+tab instead of four. *Helpers* holds coaches, photographers, rabbis and the like, plus organizations,
+sites and WhatsApp groups (§9.1). Small bottom tabs, with words.
 
 ### 6.2 Home — "what do I do now?"
 1. **Inbox** — *"4 new items — file them"* (only when there are any).
@@ -230,7 +242,8 @@ in a fixed place.
 1. **Banner**: photo/initials · name · current age · city · role chips · ⭐ · **Edit** (ב״ה above).
 2. **Where things stand**: status · waiting since · next step · last contact (one line; tap to change).
 3. **Action row**: **Call · Email · WhatsApp · SMS** (owner's order) · **Share** — only the ones
-   with a number/address.
+   with a number/address, **aimed at the right person and allowed by *how to reach them*** (e.g.
+   Call goes to the married sibling; WhatsApp is hidden for *calls or SMS only*).
 4. **Profile** (text, or the resume) → **Looking for** / age range → **Resume & Photos**.
 5. Collapsed, each with a count: **Ideas (3)** · **Has their profile (7)** · **Contact people (2)**
    · **Categories** · **Where they came from** · **Timeline (41)** · **Notes**.
@@ -241,6 +254,10 @@ For a shadchan the same screen shows *Ideas they sent you*, *Has your profile (v
 conversation, their next step.
 
 ### 6.4 Ideas
+**Automatic halachic check**: when a single is marked Kohen, any idea where the other side is
+divorced or a convert shows a clear warning (PeerMatch already stores *Kohen* / *Kosher for Kohen*);
+the same check filters *Find matches* and *Who should get this profile*.
+
 Chips: *Active · Looking into · Waiting · Dating · Went out · Declined · Contacted on a site ·
 All*, plus *by who suggested it*. Row: *Her ↔ Me* or *Him ↔ Her* · who suggested · status ·
 whose answer is pending and for how long. Idea screen: **both people side by side** (this is also
@@ -251,6 +268,16 @@ timeline.
 Your profile and its **versions** · **Pending updates** (filled from captured requests) · **Has
 your profile**: every shadchan, which version, when — outdated ones flagged · **Share** ·
 **"Who should have it?"** (§9).
+- **Language versions**: the same profile in English, Hebrew and Russian, each sendable on its own.
+  A real exchange showed why: a long two-language profile sent on WhatsApp was cut off at "Read
+  more", and the shadchan answered *"in Hebrew"* — the Hebrew part was below the fold.
+- **Ready before they ask** — the things shadchanim keep requesting, stored once and sent in one
+  tap: photo · parents' names · references (name + phone, and whether each **knows they're listed**)
+  · each language version. A **readiness checklist** shows what's still missing.
+- **In their template**: your profile rendered automatically into common templates (the Israeli 📌
+  *כרטיס שידוכים*, an English and a Russian equivalent) in each language — no retyping when a
+  shadchan sends an empty template — with a per-send choice of the **contact line**: *me* · *this
+  shadchan* · *none*.
 
 ### 6.6 Search — in the top bar of every screen
 Goal: **find the right person in 2–3 seconds** — not a search engine.
@@ -278,9 +305,12 @@ yet) → **How** (WhatsApp · SMS · Email · Copy) → **preview of exactly wha
 - **PDF-first**: a resume PDF is sent as the PDF; if it's removed, the text profile is used
   automatically. OCR'd text never replaces the PDF.
 - **Photo** as an optional Yes/No second step.
-- **Language lines** (English/Hebrew/Russian) chosen at send time.
+- **Language**: each shadchan has a *reads* setting (e.g. Hebrew); sharing defaults to that language
+  version of the profile (or those language lines of a text profile), changeable at send time.
 - **Looking for** only if ticked in the preview (unticked by default, as in PeerMatch; remembered
   per person). **Age range sought** is never shared.
+- **OK to share?** — a card from a friend marked *ask first* or *only with …* warns before it goes
+  to anyone else.
 - **Built only from shareable fields** (profile, resume, photos, chosen contact person). Notes,
   categories, timeline, where they came from and 🔒 categories **cannot** go out.
 - Several recipients: **one message each, one tap each**, never bundled — a web page cannot
@@ -340,7 +370,7 @@ Detects the kind (profile/idea · contact · "call…/send…" · profile-update
 extracts in English/Hebrew/Russian (name, age with its date, city, phones, emails, parents, school,
 who sent it, dates) → links and warns (*"From Mrs. Katz"*, *"⚠ suggested by Mr. Stein on May 3 —
 you said No (age)"*, *"⚠ you went out in 2025"*, *"⚠ contacted on ChabadMatch"*) → offers one-tap
-actions (*New idea from Mrs. Katz · Add to existing idea · New shadchan: Rabbi Cohen · Call him
+actions (*New idea from Mrs. Katz · **Save for friends** · Add to existing idea · New shadchan: Rabbi Cohen · Call him
 today/tomorrow · Update my profile · Note on … · Dismiss*).
 
 ### 8.4 The owner's four examples
@@ -404,9 +434,17 @@ must become a **proposal** — nothing saved yet:
 3. **Scope rules** so facts attach to the right person: words after *"looking for"* describe the
    match wanted, not her; a phone right after *"her mother is Mrs. Cohen"* belongs to Mrs. Cohen;
    *"my friend Sarah has…"* makes Sarah the referrer, not the single.
-4. **Assembly** into proposed people + links + the idea, then **matching against existing people**
+4. **Status phrases**: a word list of what shadchanim write when an idea moves, in all three
+   languages — *"sent it to her"*, *"haven't asked her yet"*, *"the mother saw it"*, *"she agrees"*,
+   *"came up before, not suitable"* (`שלחתי לה`, `לא שאלתי אותה עדיין`, `ההצעה עלתה בעבר ולא מתאים`…)
+   → proposed status changes on the right idea.
+5. **Profile templates**: many profiles follow a labelled template — e.g. the Israeli
+   *כרטיס שידוכים* with `📌שם / גיל / סטטוס / גובה / עדה / אזור מגורים / מגזר+רמה דתית / עיסוק /
+   תכונות / משפחה / אני מחפש/ת / לפרטים נוספים`, or English `Name: / Age: / Looking for:`, or
+   bold headers (`*Location:*`). A label found → its value is read with high confidence.
+6. **Assembly** into proposed people + links + the idea, then **matching against existing people**
    (repeat warnings, §17).
-5. **Learning from corrections, without AI**: when you fix something (a city it missed, a
+7. **Learning from corrections, without AI**: when you fix something (a city it missed, a
    nickname, a shadchan's spelling), it goes into **your personal word list**, so it's right next
    time.
 
@@ -441,7 +479,93 @@ they, and the phone itself, contribute a lot:
 like those CRM tools use (desktop only, can't run in Android Chrome, and automating WhatsApp risks
 its terms) · paid resume parsers (cloud, paid) · online AI (cloud).
 
-## 9. Organizing hundreds of shadchanim
+### 8.8 Lessons from real shadchan conversations
+
+**Chat 1.** The owner shared a real WhatsApp export (one shadchan, about a week, ~150 lines, Hebrew and English).
+It stayed in the session's temporary workspace — **never committed**; this repository is public.
+Described here without names, numbers or personal details.
+
+**One chat carried almost every kind of information the app must handle:**
+
+| In the chat | What ZivugBase should propose |
+|---|---|
+| A profile sent as an image — lost as `<Media omitted>` | An idea from that date with the girl unknown; *"export again with media"* |
+| *"The mother saw it — what do you think?"*, *"she didn't want before — does she agree now?"* | Status updates on that idea |
+| *"Would you agree to a Sephardi girl?"*, *"to someone 40+?"*, *"a divorcée?"* — and the answers | **Your own preferences** (open to a different background; age limit changed a week later; a halachic limit on who is possible) → proposed updates to *Me → Looking for* |
+| *"Send me your photo"* → photo sent | *Sent: photo* on the timeline; photo becomes part of *Ready before they ask* |
+| A friend who might want the 40+ idea; *"send the friend's card"* | A next step in **helping others** mode: *send the friend's card to this shadchan* |
+| A full Hebrew **📌 profile card**: name, age, status, height, origin, area, sector, occupation, traits, family, looking for, and **five contact people with phones** | A new girl + five contact people (created quietly — they appear under *Everyone* and in search, not in your main lists), and an idea: her ↔ you, suggested by this shadchan |
+| *"I haven't asked her yet"* → *"I sent it to her"* → *"It came up before and isn't suitable"* | The idea moves: *waiting for her side* → **closed**, reason *came up before* — the exact repeat problem ZivugBase should prevent |
+| *"What are your parents' names?"* → answered | **Pending update** on *Me*: add parents' names |
+| *"Send me your card"* → the two-language profile → *"In Hebrew"* → the Hebrew part resent | *Sent profile* (twice); this shadchan *reads Hebrew*; language versions on *Me* |
+| *"Write references' names and phones"* → three references | **Pending update** on *Me*: references |
+| The shadchan appears only as a phone number | Ask once: *"Who is +972 …?"* |
+
+What this confirms: **a conversation is not one item** — it's a thread of many facts over days,
+and each fact belongs to a different place (the shadchan, an idea, *Me*, a friend). The import
+produces one timeline (every message with its real date and time) **plus a short list of
+proposals**, each accepted or skipped with one tap. It also added three features to the plan:
+**language versions** of your profile with a per-shadchan language, **Ready before they ask**, and
+the **automatic Kohen check**.
+
+**Chat 2.** A second shadchan, about two weeks, ~380 lines in English and Hebrew, **with 14 contact
+cards (`.vcf`)** included in the export. Also kept out of the repository; described without names.
+
+| In the chat | What ZivugBase should propose |
+|---|---|
+| **14 contact cards** sent in bursts, with instructions: *"write to each person, if they know people who can help you"*, *"write to everyone, in both Hebrew & English"*, *"follow up with a phone call after Yom Tov if they didn't respond"* | **14 new people in one step**, all *referred by* this shadchan on that date (the referral tree); her comment placed on the right person (*"the last one is at the seminary in my neighbourhood"*, *"these two are for people who aren't vaccinated"*); then a **batch send** of your profile in Hebrew + English, and **one follow-up rule for the batch**: *"call anyone who hasn't replied by <after Yom Tov>"*, which cancels itself for each one who answers |
+| Contact names that **carry categories**: *Shad.*, *Rebetzin*, *Rabbi*, *shadchanit*, *שדכנית*, *Chabad*, *Jerusalem*, *campus*, *Students* | Suggested role (shadchan / rabbi or rebbetzin who knows people) and categories (Chabad, Jerusalem, young/students) — to confirm with one tap |
+| Contact cards made by WhatsApp: a `waid=` number on the phone line; some with a WhatsApp Business description, a title, an organisation or a photo; some in Apple's `item1.TEL` form | `waid` = the exact WhatsApp number (strongest duplicate signal); the business description saved as a note; all card variants read |
+| Five **profiles "not for you, maybe for a friend"** — *"If not for you, anyone else??"* → *"I can add it to my database for now"* | A filing choice beside *Idea for me*: **Save for friends** (a girl in *Helping others*, source: this shadchan). The automatic Kohen check proposes it by itself for a divorcée |
+| Profiles whose contact line is **another shadchan** (*"please write to <name> the shadchanit on WhatsApp …"*, *"for suggestions: the shadchan …"*) | That shadchan proposed as a new person, linked as *contact for this profile* — the network grows from profiles too |
+| Profile templates with **different emoji bullets** (🌷, 🍩, 📌, 🌸), English prose with a **date of birth** instead of an age (a date like *3/4/95*), *"up to age N, no more"*, *"ages N–M"* | Labels matter, not emoji; age from the date of birth (ambiguous day/month decided by context, e.g. a US city, or asked); age limits read into *age range sought* |
+| The same profile **sent twice** in a row | Recognized as one inside the same import |
+| The owner writes a shadchanit's name in English; her contact card has it in Hebrew, with a differently spelled first name | **Cross-script matching** proposes *"same person?"* (the English surname ≈ its Hebrew spelling) — a real case, not a theory |
+| An **empty 📌 template**: *"fill this out and make it into 3 separate cards: Heb, Russian & Eng. Add my number at the bottom"* — the owner then typed three versions by hand | **Your profile rendered into a template automatically**, in each language, from *Me* — plus a per-send choice of the contact line: *me* · *this shadchan* · *none* |
+| *"2 references are people I know 1 year… I should tell them I put them as reference"* | References carry **"knows they're listed: Yes/No"** and offer a next step to tell them |
+| *"Call me tomorrow"*, *"I'll call u"* | *Call me* → a next step for you; *I'll call you* → **waiting for their call**, not a task |
+| *"Two people for the non-vaccinated"* | Categories must be **extendable by the user** — nobody would predefine this one |
+| Deleted-message lines, empty lines (stickers), search links, a recommended site | Ignored, or kept as a note — never turned into records |
+
+What chat 2 adds: the owner's shadchan network grows mostly by **referral bursts** and **profiles that
+name other shadchanim**, and the key follow-up is **"call whoever hasn't answered"** — so the batch
+follow-up rule, the referral tree and automatic waiting carry real weight.
+
+**Chat 3.** A friend, ~120 lines, English and Hebrew — the *helping others* mode in real life. Kept out
+of the repository; described without names.
+
+| In the chat | What ZivugBase should propose |
+|---|---|
+| The chat's name is the owner's phone-book name for him: **city, name, "From <neighbourhood>"** | Phone-book names carry categories in the owner's own contacts too → on import, the place and origin become proposed categories and the clean name is shown |
+| The friend sends **his own profile** (Hebrew, bold headers; status, age, where he lives and came from, religious outlook, work, schools, about, looking for, family) with **six references**, US and Israeli numbers | A guy in *Helping others*, source: *the friend himself* |
+| US numbers in Hebrew text come out **scrambled by right-to-left display**: `555-0123 (212) – ארה"ב` (made-up number, real pattern) | Phone reading handles right-to-left reordering and uses nearby words (*ארה"ב*, *ישראל*, *USA*) as the country |
+| He forwards **another friend's profile copied from a dating site's page** (sections: *About · Education · Occupation · Personal Description · Looking For · Parents · References*), with *"Not a Cohen"*, *"looking for … FFB, BT or Convert, 24–32"*, references labelled *(Friend, WhatsApp)*, *(Co-Worker)*, *(Family Member)* | A second guy; *looking for* + **age range 24–32** + **backgrounds accepted**; **Kohen: No**; references with **relationship** and **how to reach them** |
+| *"Contact the married sibling (email, phone). Only shadchanim / rabbis / rebbetzins / married people should contact the single directly"* — and in other profiles *"messages only"*, *"WhatsApp only, with a profile card and photo"*, the owner's own *"calls or SMS only — no WhatsApp"* | **How to reach them** on every person: *who* to contact and *the rule*. The Call / WhatsApp buttons go to the right contact person and hide what isn't allowed |
+| The owner asks *"how do you know them, any issues, describe him in a sentence"* → *"childhood family friend"*, *"he is normal"*, *"not so religious"*, *"hard working, dedicated, loyal, family oriented"* | **"What <friend> says"** — the words of the person who brought the card, kept **separate from the profile's own text** (here they even differ: the profile says *Modern Chabad FFB*, the friend says *not so religious*), plus **how they know them** |
+| The friend asks *"What do you plan to do with my profile?"* → *"just keep it on my phone… I can send it to my mom"* | **OK to share?** on a card that came from a friend: *Yes · Only with … · Ask first*. Sharing warns if it isn't a Yes |
+| The owner's own message asking friends for singles: *"name, age, location, background, a few words about personality, what they're looking for, important considerations, and how you know them"* | A ready **"Ask a friend for singles"** message in the templates — and a confirmation of the essential fields of a card |
+| The owner's mother both receives profiles and sends him ideas | A **helper** (family or friend) is simply a person with that role; ideas from her are sourced to her |
+| *"Welcome back to WhatsApp…"*, `<This message was edited>`, *"Inline image 1"* | Noise — stripped |
+
+**Chat 4.** A shidduch coach, about two weeks, Hebrew and English, with **a file of 6 contacts** and one
+more contact card. Kept out of the repository; described without names.
+
+| In the chat | What ZivugBase should propose |
+|---|---|
+| First line: *"uses a default timer for disappearing messages … will disappear 90 days after they're sent"* | Import warns: **this chat deletes itself after 90 days** — capture what matters now; and a next step *"export this chat again"* before the 90 days end |
+| **One `.vcf` file holding 6 contacts** — shadchanim | Six people in one step, *referred by* the coach |
+| *"Maybe I'll look for a photographer … they are hard to find"* → the coach sends **a contact card** | A new **helper**: role *profile photographer*, recommended by the coach — the role comes **from the message just before the card**, since the card itself says nothing |
+| The owner sends **several versions of his profile** (Hebrew and English, *"just a little better formatting, same text"*; a later one adds *not a smoker* and an age range) | **Profile versions** with what changed — so "who has which version" is real, not theoretical |
+| The coach sends profiles — mostly pictures, one as Hebrew text with *"age 38 (January)"* | Ideas/cards as before; age **with its month**, so it ticks over at the right time |
+| The owner reacts: *"she is not looking for Haredi"*, *"the more creative one"*, *"the one without… seems more religious"* | Each reaction becomes a **note on that idea** (and, for a clear no, the answer + reason) |
+| The coach sends **study advice** unrelated to any person | A note on the coach, or dismissed — never a record |
+| The owner: *"hard to match someone if you don't personally know them… good to have recommendation… otherwise it's just a card"*; *"tell me if you recommend them and if they have any issues"* | **How well I know them** on every single: *I know them personally · recommended by someone I trust · just a card* — the owner's own rule, now a field |
+
+All four chats — anonymized (names, numbers and identifying details replaced; structure, templates and
+phrasing kept) — become the **first entries in the test collection** (§8.6). Anonymized test files are
+the only form in which real messages may enter the repository.
+
+## 9. Organizing hundreds of shadchanim (and helpers)
 
 - **One shared set of categories** for people and shadchanim: age range, religious level,
   background, marital status, work/learning, region, languages, 🔒 appearance, 🔒 special
@@ -455,12 +579,38 @@ its terms) · paid resume parsers (cloud, paid) · online AI (cloud).
 - **Lists** (saved search or hand-picked), each with an optional **keep-in-touch interval**.
 - Phone-book habits: **A–Z index**, ⭐ favorites on top, recent, group by letter / region /
   category / source, merge duplicates.
+- **Phone-book names carry categories** (*"Shad. …"*, *"Rabbi … Chabad <city>"*, *"<city>, <name>, From
+  <neighbourhood>"*): on import, these become proposed role, region, origin and community, and the clean
+  name is shown — confirmed with one tap.
 - Hundreds in without typing: **bulk import** (contact picker, `.vcf`, WhatsApp group export, CSV)
   → table → *"all shadchanim, from WhatsApp group X"*; **bulk tagging**; **tagging sprint** (one per
   screen, tap chips, next); **suggested categories** from the ideas they've sent you.
 - **Usefulness** per shadchan, list and source: ideas sent → looked into → dated; reply speed.
 
 ---
+
+### 9.1 Helpers and services — coaches, photographers, rabbis, sites
+
+Not everyone useful is a shadchan or a single. From the chats: a **shidduch coach**, a **profile
+photographer** (*"they are hard to find"*), rabbis and rebbetzins who *"know people"*, an organization
+with a database of shadchaniyot, dating sites, WhatsApp groups where profiles are posted.
+
+**No new kind of record** — they are **People with a helper role** (one person = one record; a
+rebbetzin can be a helper *and* a shadchan). Organizations, sites and WhatsApp groups are People of
+kind *organization*, with a link instead of a phone.
+
+- **Roles** (extendable, like categories): shidduch coach · profile photographer · profile/resume
+  writer · dating coach · counsellor · rabbi / rebbetzin / mashpia · event organizer · organization ·
+  dating site · WhatsApp group · *add your own*.
+- For each helper: **recommended by** (linked — the same referral tree as shadchanim), **what it
+  costs** (free / paid / a note), area and languages, **used them? Yes / No**, **would I recommend
+  them? Yes / No**, notes (*"good with Russian speakers"*). No star ratings.
+- **Found where you need them**: *Me*'s readiness checklist links *Photos* to your photographers;
+  a coach's advice can become a next step (*"get professional photos"*, *"shorten the profile"*).
+- **Recommend them onward** — the share flow can send a helper's contact card to a friend (as
+  PeerMatch already could for shadchanim).
+- **Groups and sites as sources**: profiles that arrive from a WhatsApp group or a site record it as
+  where they came from; the group's invite link is kept on the group.
 
 ## 10. Follow-ups — deliberately small
 
@@ -471,6 +621,8 @@ Answers one question: **"Who do I need to deal with today?"**
   Today as *"No answer in 6 days"*.
 - **Keep in touch** (shadchanim): every N days per person or per list; any contact moves the next
   check-in forward by itself.
+- **Batch follow-up**: after sending to a group (e.g. 11 new shadchanim), one rule — *"call anyone who
+  hasn't replied by <date>"* — creates the next steps only for those still silent on that date.
 - **Not included:** recurring tasks, sub-tasks, priorities, projects, a calendar.
 - Reminders show when the app is open (a web limit). Two optional ways past it: **"Add to my
   calendar"** (the phone's calendar rings) or the Android add-on.
@@ -527,6 +679,11 @@ attachments are limited to 25 MB. No web API can back up in the background.
 | Storage full / a save fails | Checked before big imports; a failed save is shown at once with "back up now"; never silent |
 | Deleting a person | Gone from lists at once, with Undo; kept 30 days in Recently deleted; **Delete forever** available; their files deleted with them. Earlier backups still contain them — said plainly |
 | Voice transcription | Chrome may send audio to Google when on-phone recognition isn't available (owner accepted) |
+
+**This repository is public.** Real messages, names and phone numbers never enter it. From Stage 1 the
+automatic checks **refuse any change** containing a phone-number-shaped string or a name that isn't
+on a short list of made-up examples; test messages are anonymized before they're added. (Added after
+rev 9 briefly put a reference's number and two names into this plan; removed in the next change.)
 
 Field tiers: **Shareable** (profile, resume, photos, chosen contact person, optionally *looking
 for*) · **Internal** (notes, timeline, categories, where they came from, age range sought,
@@ -596,6 +753,15 @@ Every message answers: **what happened · what is safe · what to do next.**
 ---
 
 ## 17. Import and duplicates
+
+**WhatsApp chat exports** (details from a real export, §8.8): lines look like
+`DD/MM/YYYY, h:mm pm - Sender: text` on Android in English (iPhone uses `[date, time] Sender: text`;
+date order and 12/24-hour depend on the phone's settings — all handled); a message can run over many
+lines; media appear as `<Media omitted>` when exported without media; the **other person is often
+only a phone number**, and the chat's own file name (*"WhatsApp Chat with +972 …"*) says who it was
+with. Import asks **once** *"Who is +972 …?"* (matching existing people by phone first), turns every
+message into a **timeline entry with its real date and time**, and warns *"3 attachments were not
+included — export again with media to get the profiles that were sent as pictures"*.
 
 **Sources**: PeerMatch backups (ZIP/TXT) · ZivugBase backups · WhatsApp chat exports · phone
 contacts / `.vcf` · CSV spreadsheets (column-matching preview) · pasted text and lists · PDFs and
