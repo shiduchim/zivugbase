@@ -1,6 +1,6 @@
 # ZivugBase — Product design and build plan
 
-Revision 5 — 2026-09-24. **Design only; no application code has been written for it yet.**
+Revision 6 — 2026-09-24. **Design only; no application code has been written for it yet.**
 This is the handoff between stages: every later stage starts by reading it, and code must follow
 the design principles in §2.
 
@@ -8,7 +8,8 @@ Reference app: PeerMatch v131 (`shiduchim/match`, `main` @ `7fdfced`).
 Revision history: rev 1 audit + first model · rev 2 capture-first + two modes · rev 3 dating
 sites, shared cards, import mapping · rev 4 organizing hundreds of shadchanim · **rev 5 a
 research round on simplicity, privacy, backup, accessibility, errors and real workflows; the
-model is simplified and the whole plan is consolidated into one design.**
+model is simplified and the whole plan is consolidated into one design** · rev 6 the
+understanding layer (§8.6): Received → Understood → Filed, nothing saved without a tap.
 
 ---
 
@@ -182,8 +183,11 @@ idea**; notes about a person stay on the person.
 **Activity** — when, kind, channel, text/audio, links; for *Sent profile* also which version,
 which files, which languages. Status changes are recorded automatically.
 
-**Inbox item** — received when, from which channel, raw text/files/audio + transcript, what was
-detected, status (new · filed · dismissed), what it became.
+**Inbox item** — the **original** exactly as received (text, files, audio — never replaced),
+source type (WhatsApp paste · share · email · speak · photo · import), sender **only if the
+source really provided it**, received date/time, transcript/OCR text (kept separately from the
+original), the **proposal** (§8.6), level (**Received → Understood → Filed**, or Dismissed), and
+what it became. Once filed, the original stays attached to the person/idea it became.
 
 ---
 
@@ -301,7 +305,7 @@ something, a one-tap banner offers *"Add what you copied?"*.
 
 | Where it is | How it gets in | Taps | With the add-on |
 |---|---|---|---|
-| WhatsApp **text** messages | Select one or several → **Copy** → ZivugBase → **Paste**. The main path for text: copying several messages also includes each sender's name and time, so the shadchan is recognized | 3–4 | auto-captured from notifications |
+| WhatsApp **text** messages | Select one or several → **Copy** → ZivugBase → **Paste**. The main path for text. Copying several messages usually adds each sender's name and time; it is used **only when actually present** — never assumed | 3–4 | auto-captured from notifications |
 | WhatsApp **files**: PDF, photo, voice note, contact card | Select → **Share → ZivugBase** | 2–3 | — |
 | Email text | Select all → Share (or Copy → Paste) | 3–4 | email notifications captured as a pointer |
 | Email attachment | Tap attachment → Share | 2 | — |
@@ -332,11 +336,63 @@ today/tomorrow · Update my profile · Note on … · Dismiss*).
 ### 8.4 The owner's four examples
 1. **Idea by email** → Select all → Share → name/age/city filled in, "from which shadchan?" with
    recent ones first → 1 tap → saved, repeats flagged.
-2. **Idea by WhatsApp** → Share; if *copied*, the sender is recognized and nothing is asked.
+2. **Idea by WhatsApp** → Copy → Paste. If the copied text contains the sender's name (copying
+   two or more messages usually adds it; a single message does not), the shadchan is recognized;
+   otherwise the app asks once, recent shadchanim first.
 3. **"Call this shadchan, 052-…" on the phone** → Speak → *New shadchan + next step: call today* →
    1 tap.
 4. **"Send an updated profile with these new items"** → filed as **Pending updates** on *Me*;
    after updating, *"11 shadchanim have an older version — share the new one?"*
+
+### 8.6 The understanding layer — the main engineering problem
+
+Getting material into the Inbox is easy; **understanding it correctly is the hard part** and gets
+the most design, testing and time. Example from the owner's brief:
+
+> *"My friend Sarah has a 29 year old girl in Lakewood, very nice family, 5'4, looking for a
+> Chassidish guy around 30-35. Her mother is Mrs. Cohen 732-555-1234."*
+
+must become a **proposal** — nothing saved yet:
+
+| Found | Becomes |
+|---|---|
+| "a 29 year old girl in Lakewood", "5'4" | **new girl**: age 29 (as of today), Lakewood, height 5'4" |
+| "very nice family" | kept in her profile text (not turned into a field) |
+| "looking for a Chassidish guy around 30-35" | her **Looking for**: *Chassidish*; age range sought **30–35** |
+| "Her mother is Mrs. Cohen 732-555-1234" | **Mrs. Cohen**, new person, role *contact person*, phone — linked as the girl's **mother** |
+| "My friend Sarah" | **where she came from**: *referred by Sarah (friend)* — linked to Sarah if Sarah exists |
+| who pasted/shared it | the source of the Inbox item (sender only if known) |
+
+**Three levels, one safety rule.**
+- **Received** — *"I got something."* The original is stored; nothing else happens yet.
+- **Understood** — *"This looks like a girl + her mother + a referral from Sarah."* Shown as an
+  editable card: every extracted field visible, each marked sure / unsure, each tap-to-fix, and
+  repeat warnings (*"a Cohen in Lakewood already exists — same family?"*).
+- **Filed** — only when you tap **Save as girl / guy / shadchan / idea / note**. **Nothing
+  extracted ever enters the real database, or overwrites an existing field, without that tap.**
+
+**How it understands, for free and offline** (no online AI):
+1. **Recognizers** for things with a shape: ages (`29 year old`, `בת 29`, `29 лет`), heights
+   (`5'4`, `1.62`), phone numbers, emails, age ranges (`30-35`, `around 30`), dates.
+2. **Word lists** for things with a name: cities and regions, the category vocabulary
+   (*Chassidish, BT, divorced…*), relation words (*her mother, his father, sister, rav, contact*,
+   and their Hebrew/Russian forms), and **your own People** (known shadchanim, friends).
+3. **Scope rules** so facts attach to the right person: words after *"looking for"* describe the
+   match wanted, not her; a phone right after *"her mother is Mrs. Cohen"* belongs to Mrs. Cohen;
+   *"my friend Sarah has…"* makes Sarah the referrer, not the single.
+4. **Assembly** into proposed people + links + the idea, then **matching against existing people**
+   (repeat warnings, §17).
+5. **Learning from corrections, without AI**: when you fix something (a city it missed, a
+   nickname, a shadchan's spelling), it goes into **your personal word list**, so it's right next
+   time.
+
+**Measured, not guessed.** A test collection of real messages (anonymized — names and numbers
+changed) in English, Hebrew and Russian, each with the correct answer, runs on every change.
+Accuracy per field is tracked; a change that makes it worse cannot ship. The owner's real examples
+are the most valuable input to this (§25).
+
+Where rules run out (long rambling messages, whole chat exports), the optional in-browser AI
+experiment (§18) may help later — as another *proposal* source under the same safety rule.
 
 ### 8.5 Dating sites
 Each site is a **source**. **Paste a list**: select all + copy a site's list (or share
@@ -643,7 +699,7 @@ ZivugBase replaces it.
 | Stage | Delivers |
 |---|---|
 | **1. Foundation** | Tooling, tests, CI gate · data model (§5) · PeerMatch import + "suggested to me?" screen · backup/restore (ZIP, PDF email backup, encryption, reminders) · persistent storage · first run · modes and tabs · People with search chips, A–Z, favorites · person screen · Undo + Recently deleted · drafts · **basic Inbox** (share-in queue, Paste, Speak, Photo; file as a person or a note) |
-| **2. Smart capture + organizing** | Detection and extraction (EN/HE/RU), sender recognition from copied WhatsApp, repeat warnings + merge screen, one-per-screen triage · categories, where they came from, bulk import (contacts, `.vcf`), bulk tagging, tagging sprint · Lists |
+| **2. Smart capture + organizing** | **The understanding layer (§8.6)** with its test collection and accuracy tracking — the largest piece of work in the project; detection and extraction (EN/HE/RU), sender recognition from copied WhatsApp, repeat warnings + merge screen, one-per-screen triage · categories, where they came from, bulk import (contacts, `.vcf`), bulk tagging, tagging sprint · Lists |
 | **3. Ideas, Me, Share, Today** | Ideas (both modes) · dating sites + Paste a list · Me with versions, pending updates, who has it, "who should have it" · the share flow (PDF-first, preview, Sent? Yes/No) · Today with next steps, automatic waiting, keep-in-touch · post-call popup |
 | **4. Helping others, fully** | New idea from two people, Compare, suggested recipients, usefulness numbers, message templates, WhatsApp chat import, CSV import |
 | **5. Polish** | Desktop two-pane · app PIN · translation · accessibility pass · Hebrew/Russian app text when wanted |
@@ -662,6 +718,10 @@ ZivugBase replaces it.
 4. **"Looking for"** in outgoing profiles: unticked by default with a checkbox in the preview
    (today's behaviour, made visible); *age range sought* never shared? Recommended yes.
 5. **Go-ahead for Stage 1.**
+
+Soon (before Stage 2): **20–50 real messages** as they arrive — WhatsApp ideas, emails, notes of
+what was said on calls — in English, Hebrew and Russian, with names and phone numbers changed.
+They become the test collection that makes the understanding layer accurate (§8.6).
 
 Later (before Stage 3): **one sample per dating site** (a copied list page or a screenshot, names
 removed). One GitHub Pages settings switch when Stage 1 is ready.
