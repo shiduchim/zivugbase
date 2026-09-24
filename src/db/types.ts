@@ -59,6 +59,7 @@ export interface Person {
   siteIds: { site: string; profileId?: string; url?: string }[];
   nextStep?: { what: string; due?: number };
   waitingSince?: number;
+  snoozeUntil?: number;    /* hidden from Today until then */
   favorite: boolean;
   status: string;
   notes: string;

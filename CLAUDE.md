@@ -11,7 +11,8 @@ untouched; ZivugBase imports PeerMatch backups.
 
 - **This repository is public. Real messages, names and phone numbers never enter it** — not in
   code, tests, docs or commit messages. Test data is made up or fully anonymized. `npm run privacy`
-  runs in CI and must pass.
+  runs in CI and must pass. It catches phone numbers, email addresses and fixture files not marked
+  SYNTHETIC — it cannot catch names, so check names yourself before committing.
 - **Free only**, no cloud, no accounts, no analytics, no third-party scripts or CDNs at runtime.
   Everything the app loads is served from this site.
 - **Nothing extracted is saved without the user's tap** (Received → Understood → Filed, §8.6).

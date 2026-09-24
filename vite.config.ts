@@ -25,9 +25,11 @@ function serviceWorker(): Plugin {
       const built = Object.keys(bundle).filter((f) => f !== 'sw.js' && !f.endsWith('.map'));
       const files = ['./', ...built, ...publicFiles(resolve('public'))].map((f) => (f.startsWith('./') ? f : './' + f));
       const version = createHash('sha256').update(files.join('\n')).digest('hex').slice(0, 12);
-      sw.code = sw.code
-        .replace('"__PRECACHE__"', JSON.stringify(files))
-        .replace('__BUILD_VERSION__', version);
+      /* The minifier may re-quote the placeholders ("…", '…' or `…`), so match any quote,
+         and stop the build if either one is missing — a silent miss breaks offline use. */
+      const list = /(["'`])__PRECACHE__\1/;
+      if (!list.test(sw.code) || !sw.code.includes('__BUILD_VERSION__')) throw new Error('sw.js placeholders not found');
+      sw.code = sw.code.replace(list, JSON.stringify(files)).replace('__BUILD_VERSION__', version);
     }
   };
 }
