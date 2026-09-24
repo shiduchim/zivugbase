@@ -41,7 +41,16 @@ export function Inbox() {
   const fileIds = (items ?? []).flatMap((i) => i.fileIds);
   const names = useLive(async () => new Map((await db.files.bulkGet(fileIds)).filter((f) => !!f).map((f) => [f!.id, f!.name])), [fileIds.join(',')]);
 
-  useEffect(() => { drainIncoming().catch((e) => console.error(e)); }, [shared]);
+  /* After Share → ZivugBase, go straight to the newest shared item's filing form. */
+  useEffect(() => {
+    drainIncoming()
+      .then(async () => {
+        if (shared !== '1') return;
+        const newest = (await db.inbox.orderBy('receivedAt').reverse().toArray()).find((i) => i.source === 'share' && i.level === 'received');
+        if (newest) go('/inbox/' + newest.id + '?shared=1', { replace: true });
+      })
+      .catch((e) => console.error(e));
+  }, [shared]);
 
   const fresh = (items ?? []).filter((i) => i.level === 'received' || i.level === 'understood');
   const done = (items ?? []).filter((i) => i.level === 'filed' || i.level === 'dismissed').slice(0, 50);

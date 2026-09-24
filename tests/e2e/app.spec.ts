@@ -194,7 +194,12 @@ test('Sharing into the app lands in the Inbox, one entry per share', async ({ pa
     }
   });
   await page.goto('./#/inbox?shared=1');
-  await expect(page.getByText('Saved to Inbox ✓')).toBeVisible();
+  /* Straight to the newest share's form, with a way back to WhatsApp. */
+  await expect(page.getByText('Second shared idea — Example 000')).toBeVisible();
+  await expect(page.getByRole('button', { name: /Later — back to WhatsApp/ })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible();
+  await shot(page, '13-shared-form');
+  await page.goto('./#/inbox');
   await expect(page.getByText('First shared idea — Example 000')).toBeVisible();
   await expect(page.getByText('Second shared idea — Example 000')).toBeVisible();
   await shot(page, '13-inbox');

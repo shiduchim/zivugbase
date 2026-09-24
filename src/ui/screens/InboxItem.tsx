@@ -9,7 +9,8 @@ import { useLive } from '../../hooks';
 import { dateTime } from '../../lib/format';
 import { isImage, isPdfType } from '../../lib/images';
 import { searchPeople } from '../../lib/search';
-import { go, showToast, reportError } from '../../state';
+import { go, route, showToast, reportError } from '../../state';
+import { leaveToPreviousApp } from './Inbox';
 import { Loading, PersonRow, Sheet, TopBar, YesNo } from '../parts/common';
 import { FileList } from '../parts/Files';
 import { BackupOpener } from '../parts/BackupOpener';
@@ -147,6 +148,12 @@ export function InboxItemScreen({ id }: { id: ID }) {
           <p class="notice">This looks like a backup file. <button class="btn small primary" type="button" onClick={() => { setBackupFile(backupLike.blob); setSheet('backup'); }}>Open it as a backup</button></p>
         )}
 
+        {!done && route.value.query.get('shared') === '1' && (
+          <p class="notice" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <span>Saved to Inbox ✓</span>
+            <button class="btn small" type="button" onClick={leaveToPreviousApp}>Later — back to WhatsApp</button>
+          </p>
+        )}
         {!done && (
           <div class="btn-row" style="margin-top:8px">
             <button class="btn small" type="button" onClick={() => setSheet('add')}>Add to someone already here</button>
