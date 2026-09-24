@@ -292,12 +292,17 @@ One gesture to capture · capture now, file later (Inbox, never overwritten) · 
 record · the app proposes, you tap · file a batch in a minute (one item per screen, likely action
 highlighted).
 
+**Capturing never opens a form.** A share or paste shows *"Saved to Inbox ✓ — File now · Later"*;
+*Later* (or the phone's Back button) returns you straight to WhatsApp or email. Capture takes
+two seconds; filing happens when you have a minute. When the app opens and you've just copied
+something, a one-tap banner offers *"Add what you copied?"*.
+
 ### 8.2 Channels with no install
 
 | Where it is | How it gets in | Taps | With the add-on |
 |---|---|---|---|
-| WhatsApp message / PDF / photo / voice note / contact | Select → **Share → ZivugBase** | 2–3 | auto-captured from notifications |
-| WhatsApp, keeping who sent it | Select → **Copy** → ZivugBase → **Paste** (copying several messages includes each sender's name and time) | 3–4 | same |
+| WhatsApp **text** messages | Select one or several → **Copy** → ZivugBase → **Paste**. The main path for text: copying several messages also includes each sender's name and time, so the shadchan is recognized | 3–4 | auto-captured from notifications |
+| WhatsApp **files**: PDF, photo, voice note, contact card | Select → **Share → ZivugBase** | 2–3 | — |
 | Email text | Select all → Share (or Copy → Paste) | 3–4 | email notifications captured as a pointer |
 | Email attachment | Tap attachment → Share | 2 | — |
 | SMS | Select → Share, or Copy → Paste | 2–3 | auto-captured |
@@ -309,6 +314,12 @@ highlighted).
 
 To appear in Android's Share menu the web app must be **added to the home screen** (one tap in
 Chrome; no app store). On iPhone, Paste, Speak and Photo work; sharing into the app does not.
+
+**Honest limits.** A forwarded WhatsApp **voice note** is stored and playable, but a web app
+cannot turn a recorded audio *file* into text (browser speech recognition only listens to the
+microphone) — so it's filed with a one-line note you type or speak. **Email** is the clunkiest
+channel (Gmail has no "share this email"), hence Select all → Share or Copy → Paste. Nothing is
+captured **automatically** without the optional add-on.
 
 ### 8.3 What the app does with each item
 Detects the kind (profile/idea · contact · "call…/send…" · profile-update request · reply/note) →
