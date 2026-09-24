@@ -83,14 +83,15 @@ test('PeerMatch import, review, Home, search, person, backup and restore', async
 
   /* Add to… a new folder. The sheet opens, and the phone's Back button closes it (not the screen). */
   await page.getByRole('button', { name: 'Add to…' }).click();
-  await expect(page.getByRole('dialog', { name: 'Add to…' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: /Add Chaya Example to folder/ })).toBeVisible();
   await page.goBack();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByText('A kind, learning guy')).toBeVisible();
   await page.getByRole('button', { name: 'Add to…' }).click();
-  await page.getByPlaceholder('Folder name, e.g. Tzfat').fill('Tzfat');
-  await page.getByRole('dialog').getByRole('button', { name: 'Add', exact: true }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Done' }).click();
+  await page.getByLabel('New folder name').fill('Tzfat');
+  await page.getByRole('dialog').getByRole('button', { name: 'New folder' }).click();
+  await expect(page.getByRole('checkbox', { name: /Tzfat/ })).toHaveAttribute('aria-checked', 'true');
+  await page.getByRole('dialog').getByRole('button', { name: 'Apply' }).click();
   await expect(page.getByText('Girls › Tzfat')).toBeVisible();
 
   /* Calls due in one tap */
@@ -103,8 +104,17 @@ test('PeerMatch import, review, Home, search, person, backup and restore', async
   await expect(page.getByText('Her mother said to call after Sukkos')).toBeVisible();
   await shot(page, '07-person-timeline');
 
-  /* Tick her in the list, Delete, then Undo */
+  /* Tick two in the list and file them into the folder together; the folder shows "some" for a mix. */
   await page.goto('./#/people?show=everyone');
+  await page.getByLabel('Select Chaya Example').check();
+  await page.getByLabel('Select Leah Example').check();
+  await page.locator('.selbar').getByRole('button', { name: /Add to folder/ }).click();
+  await expect(page.getByRole('checkbox', { name: /Tzfat/ })).toHaveAttribute('aria-checked', 'mixed');
+  await page.getByRole('checkbox', { name: /Tzfat/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Apply' }).click();
+  await expect(page.getByText('Added 2 people to Tzfat.')).toBeVisible();
+
+  /* Tick her in the list, Delete, then Undo */
   await page.getByLabel('Select Chaya Example').check();
   await expect(page.getByText('Share this contact')).toBeVisible();
   await page.locator('.selbar').getByRole('button', { name: 'Delete' }).click();

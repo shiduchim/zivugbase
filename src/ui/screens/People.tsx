@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { db } from '../../db/db';
 import { softDeletePerson } from '../../db/repo';
-import { allFolders, createFolder, deleteFolder, folderPath, membersDeep, renameFolder, rootKey, type Root } from '../../db/folders';
+import { allFolders, applyFolderChanges, createFolder, deleteFolder, folderPath, membersDeep, renameFolder, rootKey, type Root } from '../../db/folders';
 import type { Activity, ID, List, Person } from '../../db/types';
 import { useDebounced, useLive } from '../../hooks';
 import { ageLabel } from '../../lib/age';
@@ -16,6 +16,7 @@ import { groupLetter, searchPeople, withoutChip } from '../../lib/search';
 import { go, mode, route, selection, setSelected, showToast } from '../../state';
 import { plural } from '../../text';
 import { AppHeader, Chips, Loading, Sheet } from '../parts/common';
+import { FolderPicker } from '../parts/FolderPicker';
 import { MatchButton } from './MakeMatch';
 import { displayName } from '../describe';
 import { CHANNEL_WORD, sendOne, senderOf, type Channel } from '../share';
@@ -126,6 +127,7 @@ export function People() {
   const [queue, setQueue] = useState<{ channel: Channel; ids: ID[]; i: number }>();
   const [newFolder, setNewFolder] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
+  const [filing, setFiling] = useState<'add' | 'move' | null>(null);
 
   const all = useLive(() => db.people.toArray(), []);
   const acts = useLive(() => db.activities.toArray(), []);
@@ -220,6 +222,16 @@ export function People() {
     setPicked(new Set());
     showToast(list.length === 1 ? `${displayName(list[0]!)} deleted.` : `${list.length} deleted.`, { label: 'Undo', run: async () => { for (const u of undos) await u(); } });
   };
+  /* Take the ticked people out of the folder being viewed (and its sub-folders). Never deletes anyone. */
+  const takeOut = async () => {
+    if (!folder || !folders) return;
+    const ids = pickedPeople.map((p) => p.id);
+    const base = folderPath(folder.id, folders) + ' › ';
+    const inside = [folder.id, ...folders.filter((f) => folderPath(f.id, folders).startsWith(base)).map((f) => f.id)];
+    const undo = await applyFolderChanges(ids, [], inside);
+    setPicked(new Set());
+    showToast(`${ids.length === 1 ? displayName(pickedPeople[0]!) : ids.length + ' people'} taken out of ${folder.name}. No one was deleted.`, { label: 'Undo', run: undo });
+  };
   const removeFolder = async () => {
     if (!folder) return;
     const undo = await deleteFolder(folder.id);
@@ -294,6 +306,13 @@ export function People() {
               <button type="button" class="lb sm del" onClick={removePicked}>Delete</button>
               <button type="button" class="lb sm gray" onClick={() => setPicked(new Set())}>Clear</button>
             </div>
+            <div class={folder ? 'files three-f' : 'files'}>
+              <button type="button" class="lb sm" onClick={() => setFiling('add')}>📁 Add to folder…</button>
+              {folder && <button type="button" class="lb sm" onClick={() => setFiling('move')}>Move to…</button>}
+              {folder
+                ? <button type="button" class="lb sm gray" onClick={takeOut}>Take out of {folder.name}</button>
+                : <button type="button" class="lb sm gray" onClick={() => setZoom(0)}>See folders</button>}
+            </div>
           </section>
         )}
 
@@ -350,6 +369,7 @@ export function People() {
           </div>
         </Sheet>
       )}
+      {filing && <FolderPicker people={pickedPeople} {...(filing === 'move' && folder ? { moveFrom: folder } : {})} onClose={() => setFiling(null)} onDone={() => setPicked(new Set())} />}
       {newFolder !== null && (
         <Sheet title={folder ? `New folder in ${folder.name}` : `New folder in ${SHOW[show].label}`} onClose={() => setNewFolder(null)}>
           <input type="text" dir="auto" placeholder="Folder name, e.g. Tzfat" value={newFolder} onInput={(e) => setNewFolder(e.currentTarget.value)} />

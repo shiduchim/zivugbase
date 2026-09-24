@@ -41,8 +41,8 @@ export function App() {
     case 'match': screen = <MakeMatch />; break;
   }
   if (!screen) screen = <Home />;
-  /* A person's page is like PeerMatch's detail: no tabs, the note bar at the bottom instead. */
-  const detail = a === 'person' && !!b && b !== 'new' && !c;
+  /* A person's page and the Add/Edit form are like PeerMatch's sheets: no tabs at the bottom. */
+  const detail = a === 'person' && !!b;
   return (
     <div class={`app${detail ? ' detail' : ''}`}>
       {screen}

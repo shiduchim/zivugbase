@@ -82,3 +82,36 @@ export function folderPath(id: ID, folders: List[]): string {
   }
   return names.filter(Boolean).join(' › ');
 }
+
+/* Several people into / out of several folders at once. Returns Undo (puts every touched
+   folder's member list back exactly as it was). */
+export async function applyFolderChanges(ids: ID[], add: ID[], remove: ID[]): Promise<() => Promise<void>> {
+  const touched = [...new Set([...add, ...remove])];
+  const before = (await db.lists.bulkGet(touched)).filter((l): l is List => !!l).map((l) => ({ id: l.id, memberIds: [...l.memberIds] }));
+  await db.transaction('rw', db.lists, async () => {
+    for (const f of before) {
+      let m = new Set(f.memberIds);
+      if (add.includes(f.id)) ids.forEach((id) => m.add(id));
+      if (remove.includes(f.id)) m = new Set([...m].filter((x) => !ids.includes(x)));
+      await db.lists.update(f.id, { memberIds: [...m] });
+    }
+  });
+  return async () => {
+    await db.transaction('rw', db.lists, async () => {
+      for (const f of before) await db.lists.update(f.id, { memberIds: f.memberIds });
+    });
+  };
+}
+
+/* Folders in tree order (parent before children) with their depth, under the given top folders. */
+export function folderTree(folders: List[], roots: Root[]): { f: List; depth: number; root: Root }[] {
+  const out: { f: List; depth: number; root: Root }[] = [];
+  const walk = (parent: string, depth: number, root: Root) => {
+    for (const f of folders.filter((x) => x.parentId === parent)) {
+      out.push({ f, depth, root });
+      if (depth < 30) walk(f.id, depth + 1, root);
+    }
+  };
+  for (const r of roots) walk(rootKey(r), 0, r);
+  return out;
+}

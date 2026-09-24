@@ -23,12 +23,14 @@ import { CHANNEL_LABEL, HOW_WELL_LABEL, KIND_LABEL } from '../../text';
 import { Loading, Sheet, TopBar, Viewer, YesNo } from '../parts/common';
 import { FileList } from '../parts/Files';
 import { FolderPicker } from '../parts/FolderPicker';
-import { MicIcon, SendIcon, StopIcon } from '../parts/Icons';
+import { BackIcon, MicIcon, SendIcon, StopIcon } from '../parts/Icons';
 import { canRecord, pickType } from '../parts/Recorder';
 import { call, canSms, canWhatsApp, email, sms, whatsapp } from '../contact';
 import { displayName } from '../describe';
 import { BODY_TYPES, FLAGS, LANGUAGES } from '../fields';
 import { LANG_LABEL, translate, type Lang } from '../translate';
+
+const HOW_WELL_SHORT = { personal: 'Know personally', recommended: 'Recommended', card: 'Only details' } as const;
 
 const DAY = 86400000;
 type Pick = { kind: 'call' | 'whatsapp' | 'sms'; who: Person; phones: Phone[] } | null;
@@ -54,13 +56,13 @@ function DetailHead({ p }: { p: Person }) {
   const full = useFileUrl(view ? p.photoFileIds[0] : undefined);
   return (
     <header class="dhead">
-      <button class="roundback" type="button" aria-label="Back" onClick={() => back('/people')}>‹</button>
+      <button class="roundback" type="button" aria-label="Back" onClick={() => back('/people')}><BackIcon /></button>
       <h1 class="bidi" dir="auto">{displayName(p).replace(/\*/g, '')}</h1>
       {tile.url && <button class="tile" type="button" aria-label="Open the photo" onClick={() => setView(true)}><img src={tile.url} alt="" /></button>}
-      {isGirl && hasPhoto && <button class="lb sm" type="button" style="padding:4px 10px" onClick={() => setView(true)}>Photo</button>}
+      {isGirl && hasPhoto && <button class="editbtn" type="button" onClick={() => setView(true)}>Photo</button>}
       <div class="edit">
         {single && <span class="bh">ב״ה</span>}
-        <button class="lb" type="button" onClick={() => go(`/person/${p.id}/edit`)}>Edit</button>
+        <button class="editbtn" type="button" onClick={() => go(`/person/${p.id}/edit`)}>Edit</button>
       </div>
       {view && full.url && <Viewer url={full.url} onClose={() => setView(false)} />}
     </header>
@@ -256,10 +258,10 @@ function CallDue({ p }: { p: Person }) {
   return (
     <>
       <div class="duerow">
-        <button type="button" class={`lb sm${day === today ? ' wait-on' : ''}`} onClick={() => set(today + 12 * 3600000, 'today')}>Call today</button>
-        <button type="button" class={`lb sm${day === today + DAY ? ' wait-on' : ''}`} onClick={() => set(today + DAY + 12 * 3600000, 'tomorrow')}>Call tomorrow</button>
-        <button type="button" class={`lb sm${other ? ' wait-on' : ''}`} onClick={() => setOpen(!open)}>{other ? new Date(due!).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : 'Pick a date'}</button>
-        <button type="button" class="lb sm gray" disabled={due === undefined} onClick={() => set(undefined, '')}>{due === undefined ? 'No reminder' : 'Clear'}</button>
+        <button type="button" class={day === today ? 'on' : ''} onClick={() => set(today + 12 * 3600000, 'today')}>Call today</button>
+        <button type="button" class={day === today + DAY ? 'on' : ''} onClick={() => set(today + DAY + 12 * 3600000, 'tomorrow')}>Call tomorrow</button>
+        <button type="button" class={other ? 'on' : ''} onClick={() => setOpen(!open)}>{other ? new Date(due!).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : 'Pick date'}</button>
+        <button type="button" class="clear" disabled={due === undefined} onClick={() => set(undefined, '')}>{due === undefined ? 'No reminder' : 'Clear'}</button>
       </div>
       {open && <input type="date" style="margin:-4px 0 10px" value={due ? toInput(due) : ''} onInput={(e) => { const at = Date.parse(e.currentTarget.value + 'T12:00'); if (Number.isFinite(at)) { void set(at, new Date(at).toLocaleDateString()); setOpen(false); } }} />}
     </>
@@ -270,7 +272,7 @@ function Talked({ p }: { p: Person }) {
   const f = p.facts;
   const setFact = (k: string, v: string | boolean) => patch(p.id, (q) => { if (v === '' || v === false) delete q.facts[k]; else q.facts[k] = v; });
   return (
-    <div class="pcardx">
+    <div class="pcardx talked">
       <div class="checks">
         <label class="check"><input type="checkbox" checked={!!f.talkedPhone} onChange={(e) => setFact('talkedPhone', e.currentTarget.checked)} />Talked by phone</label>
         <label class="check"><input type="checkbox" checked={!!f.talkedInPerson} onChange={(e) => setFact('talkedInPerson', e.currentTarget.checked)} />Talked in person</label>
@@ -350,9 +352,9 @@ function ContactRow({ label, who, about, onPick }: { label: string; who: Person 
 function ShadchanSelect({ p, label, people }: { p: Person; label: string; people: Map<ID, Person> }) {
   const shadchanim = [...people.values()].filter((x) => x.roles.includes('shadchan') && x.id !== p.id).sort((a, b) => a.name.localeCompare(b.name));
   return (
-    <div class="pcardx">
+    <div class="pcardx soft">
       <div class="t">{label}</div>
-      <div style="display:flex;gap:6px">
+      <div class="selrow">
         <select aria-label={label} value={p.cameFrom?.personId ?? ''} onChange={(e) => {
           const v = e.currentTarget.value;
           void patch(p.id, (q) => {
@@ -363,7 +365,7 @@ function ShadchanSelect({ p, label, people }: { p: Person; label: string; people
           <option value="">{p.cameFrom?.note ? `${p.cameFrom.note} (not linked)` : label === 'Referred by' ? 'No one' : 'Add linked Shadchan…'}</option>
           {shadchanim.map((s) => <option key={s.id} value={s.id}>{displayName(s)}{s.phones[0] ? ' • ' + displayPhone(s.phones[0].number) : ''}</option>)}
         </select>
-        {p.cameFrom?.personId && <button type="button" class="lb sm" style="padding:4px 14px" onClick={() => openPerson(p.cameFrom!.personId!)}>Open</button>}
+        {p.cameFrom?.personId && <button type="button" class="open" onClick={() => openPerson(p.cameFrom!.personId!)}>Open</button>}
       </div>
     </div>
   );
@@ -375,15 +377,15 @@ function Organize({ p, folders, askSuggested, onAdd }: { p: Person; folders: Lis
   const inFolders = folders.filter((fo) => fo.memberIds.includes(p.id));
   return (
     <div class="pcardx">
-      <div class="t">Folders</div>
-      <div class="chips wrap" style="padding-bottom:0">
-        {inFolders.map((fo) => <span key={fo.id} class="pill">{folderPath(fo.id, folders)}</span>)}
-        <button type="button" class="chip" onClick={onAdd}>Add to…</button>
+      <div class="folders-row">
+        <span class="t" style="margin:0">Folders</span>
+        {inFolders.map((fo) => <span key={fo.id} class="fpill bidi">{folderPath(fo.id, folders)}</span>)}
+        <button type="button" class="addto" onClick={onAdd}>Add to…</button>
       </div>
       <div class="grp">How well do I know them?</div>
-      <div class="chips wrap" style="padding-bottom:0">
-        {(Object.keys(HOW_WELL_LABEL) as (keyof typeof HOW_WELL_LABEL)[]).map((k) => (
-          <button key={k} type="button" class={`chip${p.howWellKnown === k ? ' on' : ''}`} aria-pressed={p.howWellKnown === k} onClick={() => patch(p.id, (q) => { if (q.howWellKnown === k) delete q.howWellKnown; else q.howWellKnown = k; })}>{HOW_WELL_LABEL[k]}</button>
+      <div class="tiny3">
+        {(Object.keys(HOW_WELL_SHORT) as (keyof typeof HOW_WELL_SHORT)[]).map((k) => (
+          <button key={k} type="button" class={p.howWellKnown === k ? 'on' : ''} aria-pressed={p.howWellKnown === k} title={HOW_WELL_LABEL[k]} onClick={() => patch(p.id, (q) => { if (q.howWellKnown === k) delete q.howWellKnown; else q.howWellKnown = k; })}>{HOW_WELL_SHORT[k]}</button>
         ))}
       </div>
       {askSuggested && (
@@ -412,6 +414,7 @@ export function PersonScreen({ id }: { id: ID }) {
   const [adding, setAdding] = useState(false);
   const [langBar, setLangBar] = useState(false);
   const [translated, setTranslated] = useState<{ lang: Lang; text: string }>();
+  const [tStatus, setTStatus] = useState('');
 
   const people = useMemo(() => new Map((all ?? []).filter((x) => !x.deletedAt).map((x) => [x.id, x])), [all]);
 
@@ -449,8 +452,13 @@ export function PersonScreen({ id }: { id: ID }) {
     }
   };
   const doTranslate = async (lang: Lang) => {
-    const text = await translate(p.profile.text, lang);
-    if (text) setTranslated({ lang, text });
+    try {
+      const text = await translate(p.profile.text, lang, setTStatus);
+      setTranslated({ lang, text });
+      setTStatus('');
+    } catch {
+      setTStatus('Translation is not available right now (offline, or blocked by the filter). Try again later.');
+    }
   };
 
   const history = (
@@ -482,35 +490,30 @@ export function PersonScreen({ id }: { id: ID }) {
                 {own.some((ph) => ph.type === 'landline') && <span>Landline</span>}
               </div>
             )}
-            <div class="clabel">Contact person</div>
             <ContactButtons p={p} reach={reach} onPick={setPick} />
             <CallDue p={p} />
             {p.profile.text && (
               <>
-                <button type="button" class="lb sm" style="padding:6px 16px;margin:2px 0 4px" onClick={() => setLangBar(!langBar)}>Translate</button>
+                <button type="button" class="translate" onClick={() => setLangBar(!langBar)}>Translate</button>
                 {langBar && (
-                  <div class="chips">
-                    {(Object.keys(LANG_LABEL) as Lang[]).map((l) => <button key={l} type="button" class={`chip${translated?.lang === l ? ' on' : ''}`} onClick={() => doTranslate(l)}>{LANG_LABEL[l]}</button>)}
+                  <div class="tbar">
+                    {(Object.keys(LANG_LABEL) as Lang[]).map((l) => <button key={l} type="button" class={translated?.lang === l ? 'on' : ''} onClick={() => doTranslate(l)}>{LANG_LABEL[l]}</button>)}
                   </div>
                 )}
-                {translated && (
-                  <div class="pcardx">
-                    <div class="t">Translated to {LANG_LABEL[translated.lang]} <button type="button" class="link-btn" style="min-height:0;padding:0 0 0 8px" onClick={() => setTranslated(undefined)}>Hide</button></div>
-                    <div class="pre bidi" dir="auto">{translated.text}</div>
-                  </div>
-                )}
-                <div class="pcardx"><RichText text={p.profile.text} onPhone={setPhoneMenu} /></div>
+                {tStatus && <div class="tstatus">{tStatus}</div>}
+                {translated && <div class="translated pre bidi" dir="auto">{translated.text}</div>}
+                <div class="pcardx ptext"><RichText text={p.profile.text} onPhone={setPhoneMenu} /></div>
               </>
             )}
             {p.audioProfile && <div class="pcardx"><div class="t">Audio profile</div><FileList ids={[p.audioProfile.fileId]} /></div>}
-            {(p.lookingFor.text || p.lookingFor.maxAge) && (
-              <div class="pcardx">
-                {p.lookingFor.text && <><div class="t">Looking for</div><div class="pre bidi" dir="auto">{p.lookingFor.text}</div></>}
-                {p.lookingFor.maxAge && <div style="margin-top:5px"><b>Up to age: </b>{p.lookingFor.maxAge}</div>}
-              </div>
-            )}
             {attachment}
             <Talked p={p} />
+            {(p.lookingFor.text || p.lookingFor.maxAge) && (
+              <div class="pcardx looking">
+                {p.lookingFor.text && <><div class="t">Looking for</div><div class="pre bidi" dir="auto">{p.lookingFor.text}</div></>}
+                {p.lookingFor.maxAge && <div class="age"><b>Up to age: </b>{p.lookingFor.maxAge}</div>}
+              </div>
+            )}
             <div class="pcardx contacts">
               <div class="h">Contacts</div>
               <ContactRow label="Profile" who={p} about={p} onPick={setPick} />
@@ -525,20 +528,20 @@ export function PersonScreen({ id }: { id: ID }) {
           <>
             <div class="clabel">{p.roles.includes('shadchan') ? 'Contact shadchan' : 'Contact'}</div>
             <ContactButtons p={p} reach={p} onPick={setPick} />
-            <CallDue p={p} />
             {linked.length > 0 && (
-              <div class="pcardx">
+              <div class="pcardx soft">
                 <div class="t">Linked profiles ({linked.length})</div>
-                <div class="chips wrap" style="padding-bottom:0">
-                  {linked.map((x) => <button key={x.id} type="button" class="chip" onClick={() => openPerson(x.id)}>{x.roles.includes('single') ? (x.gender === 'f' ? 'Girl: ' : x.gender === 'm' ? 'Guy: ' : '') : ''}{displayName(x)}</button>)}
+                <div class="lchips">
+                  {linked.map((x) => <button key={x.id} type="button" onClick={() => openPerson(x.id)}>{x.roles.includes('single') ? (x.gender === 'f' ? 'Girl: ' : x.gender === 'm' ? 'Guy: ' : '') : ''}{displayName(x)}</button>)}
                 </div>
               </div>
             )}
-            <ShadchanSelect p={p} label="Referred by" people={people} />
-            <QuickDetails p={p} />
+            <CallDue p={p} />
             <Talked p={p} />
+            <QuickDetails p={p} />
+            <ShadchanSelect p={p} label="Referred by" people={people} />
             {p.profile.text && (
-              <div class="pcardx">
+              <div class="pcardx ptext">
                 <div class="t">Shadchan profile / notes</div>
                 <RichText text={p.profile.text} onPhone={setPhoneMenu} />
               </div>
@@ -553,7 +556,7 @@ export function PersonScreen({ id }: { id: ID }) {
 
       <Composer onNote={saveNote} onAudio={saveRecording} />
 
-      {adding && <FolderPicker p={p} onClose={() => setAdding(false)} />}
+      {adding && <FolderPicker people={[p]} onClose={() => setAdding(false)} />}
       {pick && (
         <Sheet title={pick.kind === 'call' ? 'Call which number?' : pick.kind === 'whatsapp' ? 'WhatsApp which number?' : 'SMS which number?'} onClose={() => setPick(null)}>
           {pick.phones.map((ph, i) => (

@@ -1,0 +1,20 @@
+import { test } from '@playwright/test';
+import { peerMatchZip } from '../unit/peermatch-fixture';
+const out = '/tmp/claude-0/-home-user-match/0c1f4ff6-3aa4-5a61-9905-b4855c2863cb/scratchpad/zb';
+test.use({ viewport: { width: 412, height: 915 }, deviceScaleFactor: 2 });
+test.setTimeout(120000);
+test('home shots', async ({ page }) => {
+  await page.goto('./');
+  await page.getByRole('button', { name: /Single mode/ }).click();
+  await page.locator('input[type=file]').nth(1).setInputFiles({ name: 'PeerMatch_Backup_2026-09-24.zip', mimeType: 'application/zip', buffer: Buffer.from(peerMatchZip()) });
+  await page.getByRole('button', { name: 'Import', exact: true }).click();
+  await page.getByText(/Imported/).waitFor();
+  await page.goto('./#/home'); await page.waitForTimeout(700);
+  await page.screenshot({ path: out + '/zb-home.png', fullPage: true });
+  await page.goto('./#/settings'); await page.waitForTimeout(500);
+  await page.screenshot({ path: out + '/zb-settings.png', fullPage: true });
+  await page.goto('./#/people?show=shadchanim'); await page.waitForTimeout(500);
+  await page.screenshot({ path: out + '/zb-shadlist.png', fullPage: true });
+  await page.getByRole('button', { name: '−' }).click(); await page.getByRole('button', { name: '−' }).click();
+  await page.screenshot({ path: out + '/zb-folders.png', fullPage: true });
+});
