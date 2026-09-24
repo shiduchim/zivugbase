@@ -43,7 +43,7 @@ export async function buildBackup(at = new Date()): Promise<BackupFile> {
     if (f.thumb) { meta.thumbPath = `thumbs/${f.id}`; meta.thumbType = f.thumb.type; zip[meta.thumbPath] = [new Uint8Array(await f.thumb.arrayBuffer()), { level: 0 }]; }
     metas.push(meta);
   }
-  const counts = { people: people.filter((p) => !p.deletedAt).length, ideas: ideas.length, activities: activities.length, files: files.length, inbox: inbox.length };
+  const counts = { people: people.filter((p) => !p.deletedAt && !p.roles.includes('me')).length, ideas: ideas.length, activities: activities.length, files: files.length, inbox: inbox.length };
   const manifest: Manifest = {
     format: FORMAT, version: VERSION, createdAt: at.toISOString(), counts,
     tables: { people, ideas, activities, inbox, lists, settings: settings.filter((s) => s.key !== 'lastBackupAt'), drafts },

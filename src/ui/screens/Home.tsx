@@ -1,6 +1,6 @@
 /* Home — "what do I do now?" (PLAN §6.2): Inbox · Today · Recently added · backup line · capture bar. */
 import { db } from '../../db/db';
-import { getSetting, savePerson, addActivity } from '../../db/repo';
+import { addActivity, getMe, getSetting, savePerson } from '../../db/repo';
 import type { Person } from '../../db/types';
 import { backupStatus } from '../../backup/backup';
 import { useLive } from '../../hooks';
@@ -12,6 +12,9 @@ import { CaptureBar } from '../parts/CaptureBar';
 import { rowSub, waitingDays, whenText, WAIT_DAYS_DEFAULT } from '../describe';
 import { call, canWhatsApp, whatsapp } from '../contact';
 import type { ReviewRow } from '../../import/peermatch';
+import { answerIdea } from '../../inbox/fileItem';
+import type { Idea } from '../../db/types';
+import { ageLabel } from '../../lib/age';
 
 const DAY = 86400000;
 
@@ -72,6 +75,26 @@ function TodayRow({ item, waitDays }: { item: TodayItem; waitDays: number }) {
   );
 }
 
+function IdeaRow({ idea, people }: { idea: Idea; people: Map<string, Person> }) {
+  const her = people.get(idea.bId);
+  if (!her) return null;
+  const from = idea.suggestedBy[0]?.personId ? people.get(idea.suggestedBy[0].personId) : undefined;
+  const answer = async (a: 'yes' | 'no') => {
+    const undo = await answerIdea(idea.id, a);
+    showToast(`${a === 'yes' ? 'Yes' : 'No'} to ${her.name || 'this idea'}.`, { label: 'Undo', run: undo });
+  };
+  const sub = [ageLabel(her.age, her.dob), her.city, from ? `from ${from.name}` : '', relativeDay(idea.createdAt).toLowerCase()].filter(Boolean).join(' · ');
+  return (
+    <div class="card" style="padding:10px">
+      <PersonRow p={her} sub={sub} noSide />
+      <div class="btn-row">
+        <button class="btn small primary" type="button" onClick={() => answer('yes')}>Yes</button>
+        <button class="btn small" type="button" onClick={() => answer('no')}>No</button>
+      </div>
+    </div>
+  );
+}
+
 export function Home() {
   const people = useLive(() => db.people.toArray(), []);
   const waitDays = useLive(() => getSetting('waitDays', WAIT_DAYS_DEFAULT), []) ?? WAIT_DAYS_DEFAULT;
@@ -79,10 +102,16 @@ export function Home() {
   const backup = useLive(() => backupStatus(), []);
   const review = useLive(() => getSetting<ReviewRow[] | null>('pendingReview', null), []);
   const draft = useLive(() => db.drafts.get('person:new'), []);
+  const ideas = useLive(async () => {
+    const me = await getMe();
+    if (!me) return [];
+    return (await db.ideas.where('aId').equals(me.id).toArray()).filter((i) => !i.deletedAt && !i.legacyKey && (i.status === 'new' || i.status === 'looking-into')).sort((a, b) => b.createdAt - a.createdAt);
+  }, []);
 
   if (!people) return <><TopBar title="ZivugBase" right={<SettingsButton />} /><main><Loading /></main><CaptureBar /></>;
 
   const live = people.filter((p) => !p.deletedAt && !p.roles.includes('me'));
+  const byId = new Map(live.map((p) => [p.id, p]));
   const today = todayList(live, waitDays);
   const recent = [...live].sort((a, b) => b.createdAt - a.createdAt).slice(0, 8);
   const draftName = (draft?.value as { name?: string } | undefined)?.name?.trim();
@@ -122,6 +151,13 @@ export function Home() {
           </div>
         ) : (
           <>
+            {ideas && ideas.length > 0 && (
+              <>
+                <h2 class="section-title" style="margin-top:18px">Ideas waiting for your answer</h2>
+                {ideas.slice(0, 10).map((i) => <IdeaRow key={i.id} idea={i} people={byId} />)}
+                {ideas.length > 10 && <p class="muted small">…and {ideas.length - 10} more (People → Suggested to me).</p>}
+              </>
+            )}
             <h2 class="section-title" style="margin-top:18px">Today</h2>
             {today.length === 0
               ? <p class="muted">Nothing needs you today. Next steps and unanswered messages show up here.</p>

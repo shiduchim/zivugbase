@@ -43,6 +43,22 @@ test('PeerMatch import, review, Home, search, person, backup and restore', async
   await expect(page.getByText('Recently added')).toBeVisible();
   await shot(page, '04-home');
 
+  /* An idea copied from a shadchan's WhatsApp: one tap on Paste, the sender is recognized. */
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.evaluate(() => navigator.clipboard.writeText('[25/09/2026, 10:00] Rivka Example: Miriam Example\n[25/09/2026, 10:01] Rivka Example: She is 28 years old, lives in Bnei Brak'));
+  await page.getByRole('button', { name: 'Paste', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue('Miriam Example');
+  await expect(page.getByLabel('Age', { exact: true })).toHaveValue('28');
+  await expect(page.getByLabel('City')).toHaveValue('Bnei Brak');
+  await expect(page.getByRole('button', { name: /Rivka Example — change/ })).toBeVisible();
+  await shot(page, '04b-paste-idea');
+  await page.getByRole('button', { name: 'Save idea' }).click();
+  await expect(page.getByText('Ideas waiting for your answer')).toBeVisible();
+  await expect(page.getByText(/from Rivka Example/)).toBeVisible();
+  await shot(page, '04c-home-ideas');
+  await page.getByRole('button', { name: 'Yes', exact: true }).click();
+  await expect(page.getByText('Ideas waiting for your answer')).toHaveCount(0);
+
   /* Search: a number becomes an age chip. */
   await page.getByRole('link', { name: 'People' }).click();
   await page.getByRole('button', { name: 'Everyone' }).click();
@@ -101,7 +117,7 @@ test('PeerMatch import, review, Home, search, person, backup and restore', async
   const zipPath = await download.path();
   await page.locator('input[type=file]').setInputFiles({ name: download.suggestedFilename(), mimeType: 'application/zip', buffer: readFileSync(zipPath!) });
   await expect(page.getByText(/This backup was made on/)).toBeVisible();
-  await expect(page.getByText(/7 people/)).toBeVisible();
+  await expect(page.getByRole('dialog').getByText(/^7 people · /)).toBeVisible();
   await page.getByRole('button', { name: 'Restore', exact: true }).click();
   await expect(page.getByText(/Restored 7 people/)).toBeVisible();
 
@@ -112,7 +128,7 @@ test('PeerMatch import, review, Home, search, person, backup and restore', async
   const pdf = readFileSync((await pdfDownload.path())!);
   expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
   await page.locator('input[type=file]').setInputFiles({ name: pdfDownload.suggestedFilename(), mimeType: 'application/pdf', buffer: pdf });
-  await expect(page.getByText(/7 people/)).toBeVisible();
+  await expect(page.getByRole('dialog').getByText(/^7 people · /)).toBeVisible();
 });
 
 test('Paste → Inbox → new person, then find her by city and age', async ({ page }) => {
@@ -122,21 +138,18 @@ test('Paste → Inbox → new person, then find her by city and age', async ({ p
   await expect(page.getByText('No one here yet.')).toBeVisible();
   await shot(page, '10-home-empty');
 
+  /* One tap on Paste reads what was copied and fills in the form. */
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.evaluate(() => navigator.clipboard.writeText('Shira Example, age 27, lives in Jerusalem.\nCall her mother 050-000-0303'));
   await page.getByRole('button', { name: 'Paste', exact: true }).click();
-  await page.locator('textarea').fill('Shira Example, age 27, lives in Jerusalem.\nCall her mother 050-000-0303');
-  await page.getByRole('button', { name: 'Save to Inbox' }).click();
-  await expect(page.getByText('Saved to Inbox ✓')).toBeVisible();
-  await page.getByRole('button', { name: 'File it now' }).click();
-  await expect(page.getByText('Call her mother 050-000-0303')).toBeVisible();
-  await shot(page, '11-inbox-item');
-
-  await page.getByRole('button', { name: 'New person' }).click();
-  await page.getByRole('button', { name: 'A girl (single)' }).click();
+  await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue('Shira Example');
   await expect(page.getByLabel('Age', { exact: true })).toHaveValue('27');
-  await expect(page.getByLabel('Phone number')).toHaveValue('050-000-0303');
-  await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Shira Example');
-  await shot(page, '12-new-person-form');
+  await expect(page.getByLabel('City')).toHaveValue('Jerusalem');
+  await expect(page.getByLabel('Phone')).toHaveValue('050-000-0303');
+  await shot(page, '11-paste-form');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByText('Saved: Shira Example.')).toBeVisible();
+  await page.getByRole('button', { name: 'Open' }).click();
   await expect(page.getByRole('heading', { name: /Shira Example/ }).first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Call' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'SMS' })).toBeVisible();

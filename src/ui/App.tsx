@@ -25,7 +25,7 @@ export function App() {
   let screen;
   let capture = false;
   switch (a) {
-    case 'people': screen = <People />; break;
+    case 'people': screen = <People />; capture = true; break;
     case 'person':
       if (b === 'new') screen = <PersonEdit key="new" />;
       else if (b && c === 'edit') screen = <PersonEdit key={b} id={b} />;

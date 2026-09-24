@@ -2,7 +2,9 @@
    the item waits in the Inbox until you file it. */
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { addToInbox } from '../../inbox/inbox';
-import { back, go, reportError, route } from '../../state';
+import { go, pasted, readClipboard, reportError, route, showToast } from '../../state';
+import type { InboxItem } from '../../db/types';
+import { QuickFile } from '../parts/QuickFile';
 import { TopBar } from '../parts/common';
 import { SpeechBox } from '../parts/Speech';
 
@@ -26,45 +28,48 @@ function Saved() {
   );
 }
 
-function Paste() {
-  const [text, setText] = useState('');
-  const [clip, setClip] = useState(false);
-  const box = useRef<HTMLTextAreaElement>(null);
+/* One item per capture: made once, even if Save is tapped twice. */
+function useItemOnce(source: 'paste' | 'speak', text: string) {
+  const made = useRef<Promise<InboxItem>>();
+  const madeFor = useRef('');
+  return () => {
+    if (!made.current || madeFor.current !== text) { madeFor.current = text; made.current = addToInbox(source, text); }
+    return made.current;
+  };
+}
 
-  useEffect(() => {
-    box.current?.focus();
-    /* Only when the clipboard permission was already given: offer what was copied. */
-    (async () => {
-      try {
-        const st = await navigator.permissions?.query({ name: 'clipboard-read' as PermissionName });
-        if (st?.state === 'granted' && typeof navigator.clipboard?.readText === 'function') setClip(true);
-      } catch { /* not supported — Gboard's clipboard chip does the job */ }
-    })();
-  }, []);
-
-  const save = async () => {
-    if (!text.trim()) return;
+function CaptureForm({ source, text }: { source: 'paste' | 'speak'; text: string }) {
+  const getItem = useItemOnce(source, text);
+  const keep = async () => {
     try {
-      const item = await addToInbox('paste', text);
-      go('/capture/saved?id=' + item.id, { replace: true });
+      await getItem();
+      go('/home', { replace: true });
+      showToast('Kept in the Inbox, exactly as it came.');
     } catch (e) {
       reportError('Not saved. The text is still here — try again.', e);
     }
   };
+  if (!text.trim()) return null;
+  return <QuickFile text={text} getItem={getItem} onKeep={keep} />;
+}
+
+function Paste() {
+  const [text, setText] = useState(() => { const t = pasted.value ?? ''; pasted.value = null; return t; });
+  const box = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => { if (!text) box.current?.focus(); }, []);
 
   return (
     <>
       <TopBar title="Paste" backTo="/home" />
       <main>
-        <p class="muted small" style="margin-top:0">Copied a message in WhatsApp or email? Tap the box — your keyboard shows what you copied; tap it to paste. Several messages at once are fine.</p>
-        {clip && !text && (
-          <button class="btn full" type="button" style="margin-bottom:8px" onClick={async () => { try { setText(await navigator.clipboard.readText()); } catch { setClip(false); } }}>Add what you copied</button>
+        {!text && (
+          <>
+            <p class="muted small" style="margin-top:0">Copy a message in WhatsApp or email first, then tap Paste on Home — it fills this in by itself. Or tap the box: your keyboard shows what you copied.</p>
+            <button class="btn full" type="button" style="margin-bottom:8px" onClick={async () => setText(await readClipboard())}>Paste what I copied</button>
+          </>
         )}
-        <textarea ref={box} class="bidi" dir="auto" style="min-height:45dvh" value={text} placeholder="Paste here" onInput={(e) => setText(e.currentTarget.value)} />
-        <div class="form-actions">
-          <button class="btn quiet" type="button" onClick={() => back('/home')}>Cancel</button>
-          <button class="btn primary" type="button" disabled={!text.trim()} onClick={save}>Save to Inbox</button>
-        </div>
+        <textarea ref={box} class="bidi" dir="auto" style={text ? 'min-height:22dvh' : 'min-height:40dvh'} value={text} placeholder="Paste here" onInput={(e) => setText(e.currentTarget.value)} />
+        <CaptureForm source="paste" text={text} />
       </main>
     </>
   );
@@ -72,25 +77,13 @@ function Paste() {
 
 function Speak() {
   const [text, setText] = useState('');
-  const save = async () => {
-    if (!text.trim()) return;
-    try {
-      const item = await addToInbox('speak', text);
-      go('/capture/saved?id=' + item.id, { replace: true });
-    } catch (e) {
-      reportError('Not saved. The text is still here — try again.', e);
-    }
-  };
   return (
     <>
       <TopBar title="Speak" backTo="/home" />
       <main>
-        <p class="muted small" style="margin-top:0">Say what happened — e.g. “Mrs. Katz said to call Rabbi Cohen, 052…, about a girl from Jerusalem.” You can fix the words before saving.</p>
-        <SpeechBox value={text} onChange={setText} autoStart />
-        <div class="form-actions">
-          <button class="btn quiet" type="button" onClick={() => back('/home')}>Cancel</button>
-          <button class="btn primary" type="button" disabled={!text.trim()} onClick={save}>Save to Inbox</button>
-        </div>
+        <p class="muted small" style="margin-top:0">Say what happened — e.g. “Mrs. Katz suggested Chaya, 29, from Jerusalem.” You can fix the words.</p>
+        <SpeechBox value={text} onChange={setText} rows={5} autoStart />
+        <CaptureForm source="speak" text={text} />
       </main>
     </>
   );

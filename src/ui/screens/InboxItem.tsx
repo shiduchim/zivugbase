@@ -1,5 +1,5 @@
-/* One Inbox item: the original exactly as it came, and one-tap ways to file it —
-   New person · Add to someone · Dismiss. Nothing is saved to a person without a tap. */
+/* One Inbox item: the original exactly as it came, filed on the same screen (what is it ·
+   checked details · who sent it · Save), or added to someone, or dismissed. */
 import { useMemo, useState } from 'preact/hooks';
 import { db } from '../../db/db';
 import { addActivity, savePerson } from '../../db/repo';
@@ -13,27 +13,10 @@ import { go, showToast, reportError } from '../../state';
 import { Loading, PersonRow, Sheet, TopBar, YesNo } from '../parts/common';
 import { FileList } from '../parts/Files';
 import { BackupOpener } from '../parts/BackupOpener';
+import { QuickFile } from '../parts/QuickFile';
 import { displayName } from '../describe';
 
 const looksLikeBackup = (f: FileRec) => /\.zip$/i.test(f.name) || /zip/.test(f.type) || /backup/i.test(f.name);
-
-function NewPersonSheet({ item, onClose }: { item: InboxItem; onClose: () => void }) {
-  const choices: [string, string][] = [
-    ['role=single&gender=f', 'A girl (single)'],
-    ['role=single&gender=m', 'A guy (single)'],
-    ['role=shadchan', 'A shadchan'],
-    ['role=helper', 'A helper (coach, photographer, rabbi…)'],
-    ['', 'Someone else']
-  ];
-  return (
-    <Sheet title="Who is this?" onClose={onClose}>
-      {choices.map(([q, label]) => (
-        <button key={label} type="button" class="choice" onClick={() => go(`/person/new?from=${item.id}${q ? '&' + q : ''}`)}><b>{label}</b></button>
-      ))}
-      <p class="muted small">Next you’ll see the details filled in from this item — check them, then Save.</p>
-    </Sheet>
-  );
-}
 
 function AddToSomeoneSheet({ item, files, onClose }: { item: InboxItem; files: FileRec[]; onClose: () => void }) {
   const [q, setQ] = useState('');
@@ -116,7 +99,7 @@ export function InboxItemScreen({ id }: { id: ID }) {
   const item = useLive(async () => (await db.inbox.get(id)) ?? null, [id]);
   const files = useLive(async () => (item ? (await db.files.bulkGet(item.fileIds)).filter((f): f is FileRec => !!f) : []), [item?.fileIds.join(',')]);
   const filedTo = useLive(async () => (item?.filedAs?.personId ? (await db.people.get(item.filedAs.personId)) ?? null : null), [item?.filedAs?.personId]);
-  const [sheet, setSheet] = useState<'new' | 'add' | 'backup' | null>(null);
+  const [sheet, setSheet] = useState<'add' | 'backup' | null>(null);
   const [backupFile, setBackupFile] = useState<Blob>();
 
   if (item === undefined) return <><TopBar title="Inbox item" backTo="/inbox" /><main><Loading /></main></>;
@@ -165,15 +148,20 @@ export function InboxItemScreen({ id }: { id: ID }) {
         )}
 
         {!done && (
-          <div class="form-actions" style="flex-wrap:wrap">
-            <button class="btn primary" type="button" onClick={() => setSheet('new')}>New person</button>
-            <button class="btn" type="button" onClick={() => setSheet('add')}>Add to someone</button>
-            <button class="btn quiet" type="button" onClick={dismiss}>Dismiss</button>
+          <div class="btn-row" style="margin-top:8px">
+            <button class="btn small" type="button" onClick={() => setSheet('add')}>Add to someone already here</button>
+            <button class="btn small quiet" type="button" onClick={dismiss}>Dismiss</button>
           </div>
         )}
-        {item.text && <button class="btn small quiet" type="button" onClick={copy}>Copy the text</button>}
+        {item.text && <button class="btn small quiet" type="button" style="margin-top:8px" onClick={copy}>Copy the text</button>}
+        {!done && (
+          <QuickFile
+            text={[item.title, item.text].filter(Boolean).join('\n') || (files ?? []).map((f) => f.name.replace(/\.[a-z0-9]+$/i, '').replace(/[_]+/g, ' ')).join('\n')}
+            allowEmpty={item.fileIds.length > 0}
+            getItem={async () => item}
+          />
+        )}
       </main>
-      {sheet === 'new' && <NewPersonSheet item={item} onClose={() => setSheet(null)} />}
       {sheet === 'add' && files && <AddToSomeoneSheet item={item} files={files} onClose={() => setSheet(null)} />}
       {sheet === 'backup' && backupFile && (
         <Sheet title="Open a backup" onClose={() => setSheet(null)}>

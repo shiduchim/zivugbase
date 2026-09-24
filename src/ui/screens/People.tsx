@@ -9,6 +9,7 @@ import { go, mode, route } from '../../state';
 import { plural } from '../../text';
 import { Chips, Loading, PersonRow, SettingsButton, TopBar } from '../parts/common';
 import { WAIT_DAYS_DEFAULT } from '../describe';
+import { CaptureBar } from '../parts/CaptureBar';
 
 type Show = 'shadchanim' | 'girls' | 'guys' | 'helpers' | 'everyone' | 'suggested';
 
@@ -141,6 +142,7 @@ export function People() {
           </>
         )}
       </main>
+      <CaptureBar />
     </>
   );
 }

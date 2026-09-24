@@ -93,6 +93,19 @@ export function restoreScroll(hash: string): void {
 export const mode = signal<Mode | null | undefined>(undefined);
 export const fatal = signal<string>('');
 
+/* What the Paste button read from the clipboard, handed to the Paste screen. */
+export const pasted = signal<string | null>(null);
+
+/* Reads the clipboard inside the tap (Chrome asks once to allow it). '' when not allowed. */
+export async function readClipboard(): Promise<string> {
+  try {
+    if (typeof navigator.clipboard?.readText !== 'function') return '';
+    return await navigator.clipboard.readText();
+  } catch {
+    return '';
+  }
+}
+
 export interface Toast { id: number; text: string; action?: { label: string; run: () => void | Promise<void> } }
 export const toast = signal<Toast | null>(null);
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
