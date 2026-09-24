@@ -66,7 +66,7 @@ export function FirstRun() {
           <b>Start fresh</b>
           <span class="muted">Begin with an empty ZivugBase.</span>
         </button>
-        <p class="notice small">Try it: in WhatsApp, share any message or PDF to ZivugBase — it lands in your Inbox. (On Android, first add ZivugBase to the home screen from Chrome’s menu.)</p>
+        <p class="notice small">Try it: in WhatsApp, share any message or PDF to ZivugBase — it lands in your Intake folder. (On Android, first add ZivugBase to the home screen from Chrome’s menu.)</p>
         <button type="button" class="btn quiet" onClick={() => setStep('who')}>Back</button>
       </main>
       {file && (

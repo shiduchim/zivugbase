@@ -2,7 +2,7 @@
    The original text and files are kept on the timeline; the person is created with what the
    owner checked on screen — nothing extracted is saved without that tap. */
 import { db } from '../db/db';
-import { addActivity, blankPerson, ensureMe, savePerson } from '../db/repo';
+import { addActivity, blankPerson, ensureMe, getSetting, savePerson } from '../db/repo';
 import type { Gender, ID, InboxItem, Person, Phone } from '../db/types';
 import { isImage, isPdfType } from '../lib/images';
 import { newId, now } from '../lib/ids';
@@ -73,10 +73,13 @@ export async function fileItem(item: InboxItem, input: FileInput): Promise<Perso
 
   let p: Person;
   if (input.kind === 'shadchan') {
-    p = blankPerson({ roles: ['shadchan'], name: input.name.trim(), city: input.city.trim(), phones, notes: text, resumeFileIds: [...pdfs, ...images], ...(sender ? { cameFrom: sender } : {}) });
+    p = blankPerson({ roles: ['shadchan'], name: input.name.trim(), city: input.city.trim(), phones, profile: { text, updatedAt: t }, resumeFileIds: [...pdfs, ...images], ...(sender ? { cameFrom: sender } : {}) });
   } else {
+    /* An idea for me is the other gender from mine (Settings → I am). */
+    const mine = input.kind === 'idea' ? await getSetting<string>('myGender', '') : '';
+    const gender = input.kind === 'idea' ? (mine === 'f' ? 'm' : 'f') : input.gender;
     p = blankPerson({
-      roles: ['single'], gender: input.gender, name: input.name.trim(), city: input.city.trim(), phones,
+      roles: ['single'], gender, name: input.name.trim(), city: input.city.trim(), phones,
       profile: { text, updatedAt: t }, resumeFileIds: pdfs, photoFileIds: images,
       suggestedToMe: input.kind === 'idea', ...(sender ? { cameFrom: sender } : {})
     });

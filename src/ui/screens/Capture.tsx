@@ -1,4 +1,4 @@
-/* Capture: Paste · Speak, and the "Saved to Inbox ✓" screen. Capturing never opens a form —
+/* Capture: Paste · Speak, and the "Saved to the Intake folder ✓" screen. Capturing never opens a form —
    the item waits in the Inbox until you file it. */
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { addToInbox } from '../../inbox/inbox';
@@ -12,9 +12,9 @@ function Saved() {
   const id = route.value.query.get('id');
   return (
     <>
-      <TopBar title="Saved to Inbox ✓" />
+      <TopBar title="Saved to the Intake folder ✓" />
       <main>
-        <p>It’s in your Inbox, exactly as it came. File it now, or later when you have a minute.</p>
+        <p>It’s in your Intake folder, exactly as it came. File it now, or later when you have a minute.</p>
         <div class="btn-row">
           <button class="btn primary" type="button" onClick={() => go(id ? '/inbox/' + id : '/inbox', { replace: true })}>File it now</button>
           <button class="btn" type="button" onClick={() => go('/home', { replace: true })}>Later</button>
@@ -44,7 +44,7 @@ function CaptureForm({ source, text, senderHint }: { source: 'paste' | 'speak'; 
     try {
       await getItem();
       go('/home', { replace: true });
-      showToast('Kept in the Inbox, exactly as it came.');
+      showToast('Kept in the Intake folder, exactly as it came.');
     } catch (e) {
       reportError('Not saved. The text is still here — try again.', e);
     }
@@ -111,7 +111,7 @@ function Photo() {
     <>
       <TopBar title="Photo" backTo="/home" />
       <main>
-        <p class="muted small" style="margin-top:0">A resume on paper, a screenshot, a business card — it’s kept in the Inbox as it is.</p>
+        <p class="muted small" style="margin-top:0">A resume on paper, a screenshot, a business card — it’s kept in the Intake folder as it is.</p>
         <label class="btn primary full" style="cursor:pointer">Take or choose a photo<input type="file" accept="image/*" multiple hidden onChange={onPick} /></label>
       </main>
     </>

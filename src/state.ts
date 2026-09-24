@@ -128,3 +128,10 @@ export function reportError(what: string, err: unknown): void {
   const detail = err instanceof Error && err.message ? ` (${err.message})` : '';
   showToast(`${what}${detail}`, undefined, 8000);
 }
+
+/* What is ticked in each list (Guys, Girls, Shadchanim…), kept while moving between tabs so
+   Make match can use a guy from one list and a girl from another. */
+export const selection = signal<Record<string, string[]>>({});
+export function setSelected(list: string, ids: string[]): void {
+  selection.value = { ...selection.value, [list]: ids };
+}

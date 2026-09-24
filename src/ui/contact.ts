@@ -26,27 +26,29 @@ export function canWhatsApp(p: Person, ph: Phone): boolean {
 }
 export const canSms = (ph: Phone): boolean => ph.type !== 'landline' && !!dialNumber(ph.number);
 
-function log(p: Person, kind: 'call' | 'action', title: string, channel: string, detail: string): void {
-  addActivity(kind, detail, [p.id], { title, channel }).catch((e) => console.error('could not record', e));
+/* `about`: when calling someone's contact person, the entry shows in both Histories. */
+function log(p: Person, kind: 'call' | 'action', title: string, channel: string, detail: string, about?: Person): void {
+  const links = about && about.id !== p.id ? [about.id, p.id] : [p.id];
+  addActivity(kind, detail, links, { title, channel }).catch((e) => console.error('could not record', e));
 }
 
-export function call(p: Person, ph: Phone): void {
-  log(p, 'call', 'Call started', 'phone', displayPhone(ph.number));
+export function call(p: Person, ph: Phone, about?: Person): void {
+  log(p, 'call', 'Call', 'phone', displayPhone(ph.number), about);
   open('tel:' + dialNumber(ph.number));
 }
 
-export function whatsapp(p: Person, ph: Phone, text = ''): void {
-  log(p, 'action', 'Opened WhatsApp', 'whatsapp', displayPhone(ph.number));
+export function whatsapp(p: Person, ph: Phone, text = '', about?: Person): void {
+  log(p, 'action', 'WhatsApp opened', 'whatsapp', displayPhone(ph.number), about);
   open(whatsappUrl(whatsappNumber(ph.number, ph.waid), text));
 }
 
-export function sms(p: Person, ph: Phone): void {
-  log(p, 'action', 'Opened SMS', 'sms', displayPhone(ph.number));
+export function sms(p: Person, ph: Phone, about?: Person): void {
+  log(p, 'action', 'SMS opened', 'sms', displayPhone(ph.number), about);
   open('sms:' + dialNumber(ph.number));
 }
 
-export function email(p: Person, address: string): void {
-  log(p, 'action', 'Opened email', 'email', address);
+export function email(p: Person, address: string, about?: Person): void {
+  log(p, 'action', 'Email opened', 'email', address, about);
   open('mailto:' + address);
 }
 

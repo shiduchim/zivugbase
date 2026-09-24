@@ -150,7 +150,7 @@ export function InboxItemScreen({ id }: { id: ID }) {
 
         {!done && route.value.query.get('shared') === '1' && (
           <p class="notice" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-            <span>Saved to Inbox ✓</span>
+            <span>Saved to the Intake folder ✓</span>
             <button class="btn small" type="button" onClick={leaveToPreviousApp}>Later — back to WhatsApp</button>
           </p>
         )}

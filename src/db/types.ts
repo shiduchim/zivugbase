@@ -139,10 +139,14 @@ export interface FileRec {
   thumb?: Blob;
 }
 
+/* A folder is a List of kind 'folder'. parentId is another folder's id, or a built-in top
+   folder ('root:guys', 'root:girls', 'root:shadchanim', 'root:ideas', 'root:others').
+   Being in a folder is a label: removing someone from a folder never deletes them. */
 export interface List {
   id: ID;
   name: string;
-  kind: 'saved' | 'manual';
+  kind: 'saved' | 'manual' | 'folder';
+  parentId?: string;
   query?: string;
   memberIds: ID[];
   keepInTouchDays?: number;

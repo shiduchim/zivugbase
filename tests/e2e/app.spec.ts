@@ -33,13 +33,13 @@ test('PeerMatch import, review, Home, search, person, backup and restore', async
   await expect(page.getByText('Chaya Example, 29')).toBeVisible();
   await shot(page, '03-review');
   await page.getByRole('button', { name: /Save \(1 Yes\)/ }).click();
-  await expect(page.getByRole('button', { name: 'Suggested to me', pressed: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Ideas for me', pressed: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /^Chaya Example/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /^Leah Example/ })).toHaveCount(0);
 
   /* Home: the imported call reminder is in Today, two days late. */
   await page.getByRole('link', { name: 'Home' }).click();
-  await expect(page.getByText('Calls due')).toBeVisible();
+  await expect(page.getByText('Calls due', { exact: true })).toBeVisible();
   await expect(page.getByText('1 day late')).toBeVisible();
   /* Single mode: Home and Shadchanim tabs only. */
   await expect(page.getByRole('link', { name: 'Shadchanim' })).toBeVisible();
@@ -51,7 +51,7 @@ test('PeerMatch import, review, Home, search, person, backup and restore', async
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.evaluate(() => navigator.clipboard.writeText('[25/09/2026, 10:00] Rivka Example: Miriam Example\n[25/09/2026, 10:01] Rivka Example: She is 28 years old, lives in Bnei Brak'));
   await page.getByRole('button', { name: 'Paste', exact: true }).click();
-  await expect(page.getByText('Saved to the Inbox.')).toBeVisible();
+  await expect(page.getByText('Saved to the Intake folder.')).toBeVisible();
   await page.getByRole('button', { name: 'File now' }).click();
   await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue('Miriam Example');
   await expect(page.getByLabel('Age', { exact: true })).toHaveValue('28');
@@ -59,11 +59,8 @@ test('PeerMatch import, review, Home, search, person, backup and restore', async
   await expect(page.getByRole('button', { name: /Rivka Example — change/ })).toBeVisible();
   await shot(page, '04b-paste-idea');
   await page.getByRole('button', { name: 'Save idea' }).click();
-  await expect(page.getByText('Ideas waiting for your answer')).toBeVisible();
-  await expect(page.locator('.panel', { hasText: 'Ideas waiting' }).getByText('28 · Rivka Example')).toBeVisible();
-  await shot(page, '04c-home-ideas');
-  await page.getByRole('button', { name: 'Yes', exact: true }).click();
-  await expect(page.getByText('Ideas waiting for your answer')).toHaveCount(0);
+  await expect(page.getByText(/Saved: Miriam Example/)).toBeVisible();
+  await shot(page, '04c-home-after-idea');
 
   /* Search: a number becomes an age chip. */
   await page.goto('./#/people?show=everyone');
@@ -80,23 +77,25 @@ test('PeerMatch import, review, Home, search, person, backup and restore', async
   await page.getByRole('button', { name: /^Chaya Example/ }).click();
   await expect(page.getByRole('heading', { name: /Chaya Example/ }).first()).toBeVisible();
   await expect(page.getByText('A kind, learning guy')).toBeVisible();
-  await expect(page.getByText('Up to age 35')).toBeVisible();
+  await expect(page.locator('.pcardx', { hasText: 'Up to age:' })).toContainText('35');
   await expect(page.getByText('ב״ה')).toBeVisible();
   await shot(page, '06-person');
 
-  /* Where things stand: the sheet opens, and the phone's Back button closes it (not the screen). */
-  await page.locator('button.stands').click();
-  await expect(page.getByRole('dialog', { name: 'Where things stand' })).toBeVisible();
+  /* Add to… a new folder. The sheet opens, and the phone's Back button closes it (not the screen). */
+  await page.getByRole('button', { name: 'Add to…' }).click();
+  await expect(page.getByRole('dialog', { name: 'Add to…' })).toBeVisible();
   await page.goBack();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByText('A kind, learning guy')).toBeVisible();
+  await page.getByRole('button', { name: 'Add to…' }).click();
+  await page.getByPlaceholder('Folder name, e.g. Tzfat').fill('Tzfat');
+  await page.getByRole('dialog').getByRole('button', { name: 'Add', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Done' }).click();
+  await expect(page.getByText('Girls › Tzfat')).toBeVisible();
 
-  /* A next step, saved from the sheet */
-  await page.locator('button.stands').click();
-  await page.getByRole('button', { name: 'Send profile' }).click();
-  await page.getByRole('button', { name: 'Tomorrow' }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
-  await expect(page.getByText('Next: Send profile tomorrow')).toBeVisible();
+  /* Calls due in one tap */
+  await page.getByRole('button', { name: 'Call tomorrow' }).click();
+  await expect(page.getByText('Call reminder set — tomorrow')).toBeVisible();
 
   /* A note from the bottom note bar, shown under History */
   await page.getByPlaceholder('Note…').fill('Her mother said to call after Sukkos');
@@ -104,10 +103,12 @@ test('PeerMatch import, review, Home, search, person, backup and restore', async
   await expect(page.getByText('Her mother said to call after Sukkos')).toBeVisible();
   await shot(page, '07-person-timeline');
 
-  /* Delete the person, then Undo */
-  await page.getByRole('button', { name: 'Delete Chaya Example' }).click();
-  await page.getByRole('button', { name: 'Undo' }).click();
+  /* Tick her in the list, Delete, then Undo */
   await page.goto('./#/people?show=everyone');
+  await page.getByLabel('Select Chaya Example').check();
+  await expect(page.getByText('Share this contact')).toBeVisible();
+  await page.locator('.selbar').getByRole('button', { name: 'Delete' }).click();
+  await page.getByRole('button', { name: 'Undo' }).click();
   await expect(page.getByRole('button', { name: /^Chaya Example/ })).toBeVisible();
 
   /* Backup: save the zip, then restore it (with Undo available). Settings is on Home only. */
@@ -144,7 +145,7 @@ test('Paste → Inbox → new person, then find her by city and age', async ({ p
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.evaluate(() => navigator.clipboard.writeText('Shira Example, age 27, lives in Jerusalem.\nCall her mother 050-000-0303'));
   await page.getByRole('button', { name: 'Paste', exact: true }).click();
-  await expect(page.getByText('Saved to the Inbox.')).toBeVisible();
+  await expect(page.getByText('Saved to the Intake folder.')).toBeVisible();
   await page.getByRole('button', { name: 'File now' }).click();
   await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue('Shira Example');
   await expect(page.getByLabel('Age', { exact: true })).toHaveValue('27');
@@ -156,20 +157,20 @@ test('Paste → Inbox → new person, then find her by city and age', async ({ p
   await expect(page.getByText('Saved: Shira Example.')).toBeVisible();
   await page.getByRole('button', { name: 'Open' }).click();
   await expect(page.getByRole('heading', { name: /Shira Example/ }).first()).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Call' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'SMS' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Call', exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'SMS', exact: true }).first()).toBeVisible();
 
   /* The Inbox is empty again; the item is kept under "Filed". A person's page has no tabs. */
   await page.getByRole('button', { name: 'Back' }).click();
   await page.goto('./#/home');
-  await expect(page.getByText('Inbox — to file')).toHaveCount(0);
+  await expect(page.getByText('Intake folder — to file')).toHaveCount(0);
   /* Helping mode: Shadchanim, Guys and Girls tabs. */
   await expect(page.getByRole('link', { name: 'Girls' })).toBeVisible();
   await page.goto('./#/people?show=everyone');
   await page.getByLabel('Search people').fill('jerusalem 27');
-  await expect(page.getByRole('button', { name: /Jerusalem/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Jerusalem — remove/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /Age about 27/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Shira Example/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Shira Example/ })).toBeVisible();
 
   /* Text from the Android add-on's bubble arrives in the address, with the chat's name. */
   await page.goto('./#/capture/paste?addon=1&sender=' + encodeURIComponent('+972 50 000 0909') + '&text=' + encodeURIComponent('Tova Example\nage 30'));
@@ -179,10 +180,9 @@ test('Paste → Inbox → new person, then find her by city and age', async ({ p
 
   /* Adding the same phone number again is flagged before saving. */
   await page.goto('./#/person/new?role=shadchan');
-  await page.getByRole('button', { name: 'Add a phone' }).click();
-  await page.getByLabel('Phone number').fill('+972 50 000 0303');
+  await page.getByLabel('Phone number').first().fill('+972 50 000 0303');
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Someone Else');
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.getByRole('button', { name: 'Save Shadchan' }).click();
   await expect(page.getByText('Already here?')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Shira Example' })).toBeVisible();
 });

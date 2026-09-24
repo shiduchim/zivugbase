@@ -11,11 +11,11 @@ export async function quickPaste(): Promise<void> {
     const recent = await db.inbox.where('receivedAt').above(Date.now() - 10 * 60000).toArray();
     const same = recent.find((i) => i.text.trim() === text);
     if (same) {
-      showToast('Already in the Inbox.', { label: 'Open', run: () => go('/inbox/' + same.id) });
+      showToast('Already in the Intake folder.', { label: 'Open', run: () => go('/inbox/' + same.id) });
       return;
     }
     const item = await addToInbox('paste', text);
-    showToast('Saved to the Inbox.', { label: 'File now', run: () => go('/inbox/' + item.id) });
+    showToast('Saved to the Intake folder.', { label: 'File now', run: () => go('/inbox/' + item.id) });
   } catch (e) {
     reportError('Not saved. Try again, or open Paste and paste it by hand.', e);
   }
@@ -29,7 +29,7 @@ export function QuickActions() {
     if (!files.length) return;
     try {
       const item = await addToInbox('photo', '', files.map((f) => ({ blob: f, name: f.name, type: f.type })));
-      showToast('Photo saved to the Inbox.', { label: 'File now', run: () => go('/inbox/' + item.id) });
+      showToast('Photo saved to the Intake folder.', { label: 'File now', run: () => go('/inbox/' + item.id) });
     } catch (err) {
       reportError('The photo was not saved. Nothing else changed — try again.', err);
     }

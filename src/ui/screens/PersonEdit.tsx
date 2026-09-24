@@ -1,33 +1,37 @@
-/* Add or edit a person. Short by default: a name, or any one of profile text / resume / photo, is
-   enough. Unsaved changes are kept as a draft if the app closes. Same phone or name as someone
-   already here is shown before saving — never merged or duplicated silently. */
+/* Add / Edit a Guy, Girl or Shadchan — PeerMatch's form, with the owner's chosen changes:
+   compact phone rows (name + number + Remove, "+ Add another phone"), email behind
+   "+ Add email", Looking for with only "Up to age", Who sent it (search or new name),
+   Suggested to me, How well do I know them. Attachment: Attach only / Attach + parse text.
+   Unsaved changes are kept as a draft if the app closes. */
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { db } from '../../db/db';
 import { addActivity, blankPerson, keysFor, saveFile, savePerson } from '../../db/repo';
-import type { CameFrom, ID, InboxItem, Person, Role } from '../../db/types';
-import { useLive } from '../../hooks';
+import type { ID, InboxItem, Person, Role } from '../../db/types';
+import { useFileUrl, useLive } from '../../hooks';
 import { ageFromText, currentAge } from '../../lib/age';
 import { isAudio, isImage, isPdfType, isVcard, prepareImage } from '../../lib/images';
-import { phoneType } from '../../lib/phone';
-import { norm } from '../../lib/search';
+import { displayPhone, phoneKey, phoneType } from '../../lib/phone';
+import { readFileText } from '../../lib/readText';
+import { norm, searchPeople } from '../../lib/search';
 import { emailsInText, phonesInText, readVcards } from '../../inbox/inbox';
-import { back, go, reportError, route, showToast } from '../../state';
-import { CAME_FROM_LABEL, HELPER_TYPES, HOW_WELL_LABEL, OK_TO_SHARE_LABEL, PICKABLE_ROLES, ROLE_LABEL } from '../../text';
-import { Loading, TopBar, YesNo } from '../parts/common';
+import { guessFromText } from '../../inbox/fileItem';
+import { back, go, readClipboard, reportError, route, showToast } from '../../state';
+import { HOW_WELL_LABEL } from '../../text';
+import { Loading, Sheet, TopBar, YesNo } from '../parts/common';
 import { FileList } from '../parts/Files';
+import { Recorder } from '../parts/Recorder';
 import { displayName } from '../describe';
 
-interface DraftValue { person: Person; ageInput: string; from?: string; pendingAudio: ID[] }
+/* One phone line: whose it is (blank = the person's own) and the number. */
+interface PhoneRow { name: string; number: string; personId?: ID }
+interface DraftValue { person: Person; ageInput: string; rows: PhoneRow[]; pendingAudio: ID[] }
 
 async function fromInbox(item: InboxItem, p: Person): Promise<{ ageInput: string; pendingAudio: ID[] }> {
   const text = [item.title, item.text].filter(Boolean).join('\n').trim();
   const pendingAudio: ID[] = [];
-  if (text) {
-    if (p.roles.includes('single')) p.profile.text = text;
-    else p.notes = text;
-  }
-  const numbers = phonesInText(text);
+  if (text) p.profile.text = text;
   const emails = emailsInText(text);
+  for (const n of phonesInText(text)) p.phones.push({ number: n, type: phoneType(n) });
   for (const fid of item.fileIds) {
     const f = await db.files.get(fid);
     if (!f) continue;
@@ -43,35 +47,49 @@ async function fromInbox(item: InboxItem, p: Person): Promise<{ ageInput: string
     else if (isAudio(f.type, f.name)) pendingAudio.push(fid);
     else p.resumeFileIds.push(fid);
   }
-  for (const n of numbers) if (!p.phones.some((x) => keysFor({ phones: [x] })[0] === keysFor({ phones: [{ number: n, type: '' }] })[0])) p.phones.push({ number: n, type: phoneType(n) });
+  const seen = new Set<string>();
+  p.phones = p.phones.filter((ph) => { const k = phoneKey(ph.number) || ph.number; if (seen.has(k)) return false; seen.add(k); return true; });
   p.emails = [...new Set([...p.emails, ...emails])];
   const age = ageFromText(text);
   return { ageInput: age ? String(age) : '', pendingAudio };
 }
 
+function Photo({ id, onPick, onRemove }: { id: ID | undefined; onPick: (f: File) => void; onRemove: () => void }) {
+  const { url } = useFileUrl(id, true);
+  return (
+    <div class="ftile">
+      <label>
+        {url ? <img src={url} alt="" /> : <span>Photo / screenshot</span>}
+        <input type="file" accept="image/*" hidden onChange={(e) => { const f = e.currentTarget.files?.[0]; e.currentTarget.value = ''; if (f) onPick(f); }} />
+      </label>
+      {id && <button type="button" class="link-btn" onClick={onRemove}>Remove</button>}
+    </div>
+  );
+}
+
 export function PersonEdit({ id }: { id?: ID }) {
   const q = route.value.query;
   const from = id ? undefined : q.get('from') ?? undefined;
-  const draftKey = id ? 'person:' + id : from ? 'person:new:inbox:' + from : 'person:new';
+  const draftKey = id ? 'person:' + id : from ? 'person:new:inbox:' + from : 'person:new:' + (q.get('role') ?? '') + (q.get('gender') ?? '');
 
   const [form, setForm] = useState<Person>();
   const [original, setOriginal] = useState<Person>();
   const [ageInput, setAgeInput] = useState('');
+  const [rows, setRows] = useState<PhoneRow[]>([{ name: '', number: '' }]);
   const [pendingAudio, setPendingAudio] = useState<ID[]>([]);
   const [restored, setRestored] = useState(false);
   const [problem, setProblem] = useState('');
   const [dups, setDups] = useState<Person[]>();
-  const [newTag, setNewTag] = useState('');
+  const [find, setFind] = useState('');
+  const [parse, setParse] = useState('');
+  const [recording, setRecording] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const initialJson = useRef('');
-  const startAge = useRef<string>('');
+  const startAge = useRef('');
 
   const allPeople = useLive(() => db.people.toArray(), []);
-  const knownTags = useMemo(() => {
-    const count = new Map<string, number>();
-    for (const p of allPeople ?? []) if (!p.deletedAt) for (const t of p.tags) count.set(t, (count.get(t) ?? 0) + 1);
-    return [...count.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t).slice(0, 40);
-  }, [allPeople]);
+  const live = useMemo(() => (allPeople ?? []).filter((p) => !p.deletedAt && !p.roles.includes('me')), [allPeople]);
+  const byId = useMemo(() => new Map((allPeople ?? []).map((p) => [p.id, p])), [allPeople]);
 
   useEffect(() => {
     (async () => {
@@ -93,20 +111,30 @@ export function PersonEdit({ id }: { id?: ID }) {
           if (item) ({ ageInput: age, pendingAudio: audio } = await fromInbox(item, base));
         }
       }
-      /* Compare against what's stored, so an age filled in from the Inbox counts as a change. */
+      /* Phone rows: the person's own numbers (no name), then each contact person's. */
+      let r: PhoneRow[] = base.phones.map((ph) => ({ name: '', number: displayPhone(ph.number) }));
+      for (const c of base.contactPeople) {
+        const cp = await db.people.get(c.personId);
+        if (!cp || cp.deletedAt) continue;
+        const nums = cp.phones.filter((ph) => ph.number.trim());
+        r.push({ name: cp.name, number: nums[0] ? displayPhone(nums[0].number) : '', personId: cp.id });
+      }
+      if (!r.length) r = [{ name: '', number: '' }];
       const stored = base.age || base.dob ? currentAge(base.age, base.dob) : undefined;
       startAge.current = stored === undefined ? '' : String(stored);
-      initialJson.current = JSON.stringify({ base, age });
+      initialJson.current = JSON.stringify({ base, age, r });
       const d = await db.drafts.get(draftKey);
       const dv = d?.value as DraftValue | undefined;
       if (d && dv?.person && (!id || d.savedAt > base.updatedAt)) {
         base = dv.person;
         age = dv.ageInput;
+        r = dv.rows?.length ? dv.rows : r;
         audio = dv.pendingAudio ?? audio;
         setRestored(true);
       }
       setForm(base);
       setAgeInput(age);
+      setRows(r);
       setPendingAudio(audio);
     })().catch((e) => setProblem(String(e)));
   }, [id, from, reloadKey]);
@@ -114,45 +142,104 @@ export function PersonEdit({ id }: { id?: ID }) {
   /* draft autosave */
   useEffect(() => {
     if (!form) return;
-    const now = JSON.stringify({ base: form, age: ageInput });
-    if (now === initialJson.current) return;
+    if (JSON.stringify({ base: form, age: ageInput, r: rows }) === initialJson.current) return;
     const t = setTimeout(() => {
-      const value: DraftValue = { person: form, ageInput, pendingAudio, ...(from ? { from } : {}) };
+      const value: DraftValue = { person: form, ageInput, rows, pendingAudio };
       db.drafts.put({ key: draftKey, value, savedAt: Date.now() }).catch(() => undefined);
     }, 500);
     return () => clearTimeout(t);
-  }, [form, ageInput]);
+  }, [form, ageInput, rows]);
 
   if (problem) return <><TopBar title="Edit" backTo="/people" /><main><p class="notice bad">{problem}</p></main></>;
   if (!form) return <><TopBar title="" backTo="/people" /><main><Loading /></main></>;
 
   const set = (patch: Partial<Person>) => setForm({ ...form, ...patch });
-  const isSingle = form.roles.includes('single');
-  const isHelper = form.roles.includes('helper');
+  const single = form.roles.includes('single');
+  const shadchan = form.roles.includes('shadchan');
+  const kindWord = single ? (form.gender === 'f' ? 'Girl' : form.gender === 'm' ? 'Guy' : 'Single') : shadchan ? 'Shadchan' : 'Person';
+  const sender = form.cameFrom?.personId ? byId.get(form.cameFrom.personId) : undefined;
+  const recent = live.filter((p) => p.roles.includes('shadchan') && p.id !== form.id).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 6);
+  const found = find.trim() ? searchPeople(live.filter((p) => p.id !== form.id), find).people.slice(0, 8) : [];
 
-  const toggleRole = (r: Role) => set({ roles: form.roles.includes(r) ? form.roles.filter((x) => x !== r) : [...form.roles, r] });
-  const toggleTag = (t: string) => set({ tags: form.tags.includes(t) ? form.tags.filter((x) => x !== t) : [...form.tags, t] });
-  const addTags = () => {
-    const add = newTag.split(/[,;]+/).map((t) => t.trim()).filter(Boolean);
-    if (add.length) set({ tags: [...new Set([...form.tags, ...add])] });
-    setNewTag('');
+  /* Fill only EMPTY fields from profile text (paste, or read from a PDF/picture). */
+  const fillFrom = (text: string, base: Person = form): Person => {
+    const g = guessFromText(text, live);
+    const next = { ...base };
+    if (!next.name.trim() && g.name) next.name = g.name;
+    if (!next.city.trim() && g.city) next.city = g.city;
+    if (!ageInput.trim() && g.age) setAgeInput(g.age);
+    const nums = g.phones.filter((n) => !rows.some((r) => phoneKey(r.number) === phoneKey(n)));
+    if (nums.length) {
+      const filled = rows.filter((r) => r.number.trim() || r.name.trim());
+      setRows([...filled, ...nums.map((n) => {
+        const match = live.find((p) => p.roles.includes('shadchan') && p.phoneKeys.includes(phoneKey(n)) && p.id !== form.id);
+        return { name: match ? match.name : '', number: displayPhone(n), ...(match ? { personId: match.id } : {}) };
+      })]);
+    }
+    return next;
   };
 
-  const addFiles = async (files: FileList | null, kind: 'resume' | 'photo') => {
-    if (!files?.length) return;
-    try {
-      const ids: ID[] = [];
-      for (const f of [...files]) {
-        if (isImage(f.type)) {
-          const { blob, thumb } = await prepareImage(f);
-          ids.push(await saveFile(blob, f.name, thumb ? { thumb } : {}));
-        } else ids.push(await saveFile(f, f.name));
-      }
-      if (kind === 'resume') set({ resumeFileIds: [...form.resumeFileIds, ...ids] });
-      else set({ photoFileIds: [...form.photoFileIds, ...ids] });
-    } catch (e) {
-      reportError('The file was not added.', e);
+  const pasteProfile = async () => {
+    const t = await readClipboard();
+    if (!t.trim()) { showToast('Chrome didn’t allow reading the clipboard. Tap inside Profile and choose Paste.'); return; }
+    setForm(fillFrom(t, { ...form, profile: { text: t, updatedAt: Date.now() } }));
+  };
+
+  const setRow = (i: number, patch: Partial<PhoneRow>) => {
+    const next = rows.map((r, j) => (j === i ? { ...r, ...patch } : r));
+    /* A number that belongs to someone already here fills in their name. */
+    if (patch.number !== undefined && !next[i]!.name.trim()) {
+      const match = live.find((p) => p.id !== form.id && p.roles.includes('shadchan') && p.phoneKeys.includes(phoneKey(patch.number!)));
+      if (match) next[i] = { ...next[i]!, name: match.name, personId: match.id };
     }
+    if (patch.name !== undefined && next[i]!.personId && norm(byId.get(next[i]!.personId!)?.name ?? '') !== norm(patch.name)) {
+      const r = { ...next[i]! };
+      delete r.personId;
+      next[i] = r;
+    }
+    setRows(next);
+  };
+
+  const addPhoto = async (f: File) => {
+    try {
+      const { blob, thumb } = await prepareImage(f);
+      const fid = await saveFile(blob, f.name, thumb ? { thumb } : {});
+      set({ photoFileIds: [fid, ...form.photoFileIds.slice(1)] });
+    } catch (e) { reportError('The photo was not added.', e); }
+  };
+
+  const attach = async (file: File, andParse: boolean) => {
+    try {
+      let blob: Blob = file;
+      let extra = {};
+      if (isImage(file.type)) { const r = await prepareImage(file); blob = r.blob; if (r.thumb) extra = { thumb: r.thumb }; }
+      const fid = await saveFile(blob, file.name, extra);
+      let next: Person = { ...form, resumeFileIds: [...form.resumeFileIds, fid] };
+      setForm(next);
+      if (!andParse) { setParse(`Attached ${file.name}.`); return; }
+      setParse('Reading the text… (a scanned file can take a minute)');
+      let text = '';
+      try { text = await readFileText(file, file.name); } catch (e) {
+        setParse(`Attached. The text couldn’t be read here (${e instanceof Error ? e.message : 'error'}) — the file is kept.`);
+        return;
+      }
+      if (!text.trim()) { setParse('Attached. No text was found in it.'); return; }
+      const had = next.profile.text.trim();
+      next = { ...next, profile: { text: had ? had + '\n\n' + text : text, updatedAt: Date.now() } };
+      setForm(fillFrom(text, next));
+      setParse(had ? 'Attached. The text was added below what you had.' : 'Attached, and the text was filled in. Check it before saving.');
+    } catch (e) {
+      reportError('The file was not attached.', e);
+    }
+  };
+
+  const chooseSender = (p: Person) => { set({ cameFrom: { kind: form.cameFrom?.kind ?? 'referred', personId: p.id } }); setFind(''); };
+  const newSender = async () => {
+    const typed = find.trim();
+    const isPhone = !!phoneKey(typed) && /^[+\d\s()-]+$/.test(typed);
+    const p = blankPerson({ roles: ['shadchan'], name: isPhone ? '' : typed, phones: isPhone ? [{ number: typed, type: phoneType(typed) }] : [] });
+    await savePerson(p);
+    chooseSender(p);
   };
 
   const discardDraft = async () => {
@@ -161,7 +248,6 @@ export function PersonEdit({ id }: { id?: ID }) {
     setForm(undefined);
     setReloadKey((k) => k + 1);
   };
-
   const cancel = async () => {
     await db.drafts.delete(draftKey);
     back(id ? '/person/' + id : '/home');
@@ -170,12 +256,14 @@ export function PersonEdit({ id }: { id?: ID }) {
   const save = async (skipDupCheck = false) => {
     const p: Person = structuredClone(form);
     p.name = p.name.trim();
-    p.city = p.city.trim();
-    p.phones = p.phones.filter((ph) => ph.number.trim()).map((ph) => ({ ...ph, number: ph.number.trim(), type: phoneType(ph.number) || ph.type }));
+    const own = rows.filter((r) => r.number.trim() && (!r.name.trim() || norm(r.name) === norm(p.name)));
+    const others = rows.filter((r) => r.name.trim() && norm(r.name) !== norm(p.name));
+    const kept = new Map(p.phones.map((ph) => [phoneKey(ph.number) || ph.number, ph]));
+    p.phones = own.map((r) => kept.get(phoneKey(r.number) || r.number) ?? { number: r.number.trim(), type: phoneType(r.number) });
     p.emails = p.emails.map((e) => e.trim()).filter(Boolean);
-    if (!p.name && !p.profile.text.trim() && !p.resumeFileIds.length && !p.photoFileIds.length && !p.phones.length) {
-      setDups(undefined);
-      showToast('Add a name — or a profile, resume, photo or phone number.');
+    p.tags = [...new Set(p.tags.map((t) => t.trim()).filter(Boolean))];
+    if (!p.name && !p.profile.text.trim() && !p.resumeFileIds.length && !p.photoFileIds.length && !p.phones.length && !p.audioProfile) {
+      showToast('Add a name — or a profile, attachment, photo, audio or phone number.');
       return;
     }
     if (ageInput.trim() !== startAge.current) {
@@ -184,17 +272,41 @@ export function PersonEdit({ id }: { id?: ID }) {
       else if (n >= 16 && n <= 120) p.age = { value: Math.floor(n), asOf: Date.now() };
       else { showToast('The age doesn’t look right.'); return; }
     }
-    if (!p.roles.includes('single')) delete p.kohen;
+    const max = p.lookingFor.maxAge;
+    if (max !== undefined && (max < 18 || max > 99)) { showToast('Check "Up to age": use an age from 18 to 99.'); return; }
+    if (!p.name && p.profile.text.trim()) p.name = p.profile.text.trim().split(/\n/)[0]!.replace(/[*_~]/g, '').slice(0, 70);
     if (!skipDupCheck) {
       const keys = new Set(keysFor(p));
       const name = norm(p.name);
-      const same = (allPeople ?? []).filter((x) => x.id !== p.id && !x.deletedAt && ((x.phoneKeys.some((k) => keys.has(k)) && !(original?.phoneKeys ?? []).some((k) => x.phoneKeys.includes(k))) || (!!name && !id && norm(x.name) === name)));
+      const same = live.filter((x) => x.id !== p.id && ((x.phoneKeys.some((k) => keys.has(k)) && !(original?.phoneKeys ?? []).some((k) => x.phoneKeys.includes(k))) || (!!name && !id && norm(x.name) === name)));
       if (same.length) { setDups(same); window.scrollTo(0, 0); return; }
     }
     try {
+      /* Contact people: an existing person (by id, then by phone), or a new contact person. */
+      const links: ID[] = [];
+      for (const r of others) {
+        let cid = r.personId;
+        const key = phoneKey(r.number);
+        if (!cid && key) cid = live.find((x) => x.id !== p.id && x.phoneKeys.includes(key))?.id;
+        if (cid) {
+          const c = await db.people.get(cid);
+          if (c) {
+            let changed = false;
+            if (r.name.trim() && c.name !== r.name.trim()) { c.name = r.name.trim(); changed = true; }
+            if (key && !c.phoneKeys.includes(key)) { c.phones = [{ number: r.number.trim(), type: phoneType(r.number) }, ...c.phones]; changed = true; }
+            if (changed) await savePerson(c);
+          }
+        } else {
+          const c = blankPerson({ roles: ['contact'], name: r.name.trim(), phones: r.number.trim() ? [{ number: r.number.trim(), type: phoneType(r.number) }] : [] });
+          await savePerson(c);
+          cid = c.id;
+        }
+        if (cid && !links.includes(cid)) links.push(cid);
+      }
+      p.contactPeople = links.map((cid) => p.contactPeople.find((c) => c.personId === cid) ?? { personId: cid, relation: 'Contact' });
       await savePerson(p);
       await db.drafts.delete(draftKey);
-      for (const fid of pendingAudio) await addActivity('audio', '', [p.id], { audioFileId: fid, title: 'Voice note (from Inbox)' });
+      for (const fid of pendingAudio) await addActivity('audio', '', [p.id], { audioFileId: fid, title: 'Voice note (from the Intake folder)' });
       if (from) await db.inbox.update(from, { level: 'filed', filedAs: { kind: 'person', id: p.id, personId: p.id } });
       go('/person/' + p.id, { replace: true });
       if (original) showToast('Saved.', { label: 'Undo', run: async () => { await db.people.put(original); } });
@@ -204,9 +316,48 @@ export function PersonEdit({ id }: { id?: ID }) {
     }
   };
 
+  const whoSent = (label: string) => (
+    <div class="field">
+      <span class="section-title">{label}</span>
+      {sender ? (
+        <div class="chips wrap">
+          <button type="button" class="chip on" aria-label={`${displayName(sender)} — change`} onClick={() => { const f = { ...form }; delete f.cameFrom; setForm(f); }}>{displayName(sender)} <span aria-hidden="true">✕</span></button>
+        </div>
+      ) : (
+        <>
+          {form.cameFrom?.note && <p class="muted small" style="margin:0 0 6px">Written as: {form.cameFrom.note}</p>}
+          {recent.length > 0 && <div class="chips wrap">{recent.map((p) => <button key={p.id} type="button" class="chip" onClick={() => chooseSender(p)}>{displayName(p)}</button>)}</div>}
+          <input type="search" placeholder="Search anyone, or type a new name" value={find} onInput={(e) => setFind(e.currentTarget.value)} />
+          {found.map((p) => <button key={p.id} type="button" class="chip" style="margin:6px 6px 0 0" onClick={() => chooseSender(p)}>{displayName(p)}</button>)}
+          {find.trim().length >= 2 && !found.some((p) => norm(p.name) === norm(find)) && (
+            <button type="button" class="btn small" style="margin-top:6px" onClick={newSender}>Add “{find.trim()}” as a new shadchan</button>
+          )}
+        </>
+      )}
+    </div>
+  );
+
+  const attachmentBox = (
+    <div class="fbox">
+      <div class="section-title">PDF / screenshot</div>
+      {form.resumeFileIds.map((fid) => (
+        <div key={fid} style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><FileList ids={[fid]} /><button type="button" class="btn small quiet" onClick={() => set({ resumeFileIds: form.resumeFileIds.filter((x) => x !== fid) })}>Remove</button></div>
+      ))}
+      <div class="grid-2" style="margin-top:6px">
+        <label class="lb" style="display:grid;place-items:center;cursor:pointer">Attach only<input type="file" accept="application/pdf,image/*" hidden onChange={(e) => { const f = e.currentTarget.files?.[0]; e.currentTarget.value = ''; if (f) void attach(f, false); }} /></label>
+        <label class="lb" style="display:grid;place-items:center;cursor:pointer">Attach + parse text<input type="file" accept="application/pdf,image/*" hidden onChange={(e) => { const f = e.currentTarget.files?.[0]; e.currentTarget.value = ''; if (f) void attach(f, true); }} /></label>
+      </div>
+      {parse && <p class="muted small" style="margin:6px 0 0">{parse}</p>}
+      <p class="muted small" style="margin:6px 0 0">Reading happens on this phone (English, Hebrew, Russian). If it can’t read the file, the file is still attached.</p>
+    </div>
+  );
+
+  const flag = (k: string) => form.facts[k];
+  const setFactText = (k: string, v: string) => { const facts = { ...form.facts }; if (v.trim()) facts[k] = v; else delete facts[k]; set({ facts }); };
+
   return (
     <>
-      <TopBar title={id ? `Edit ${displayName(form)}` : 'Add a person'} backTo={id ? '/person/' + id : '/home'} />
+      <TopBar title={`${id ? 'Edit' : 'Add'} ${kindWord}`} backTo={id ? '/person/' + id : '/home'} />
       <main>
         {restored && (
           <p class="notice">Your unsaved changes were brought back. <button type="button" class="btn small quiet" onClick={discardDraft}>Discard them</button></p>
@@ -215,7 +366,7 @@ export function PersonEdit({ id }: { id?: ID }) {
           <div class="notice warn">
             <p style="margin-top:0"><b>Already here?</b> The same {dups.some((d) => d.phoneKeys.some((k) => keysFor(form).includes(k))) ? 'phone number' : 'name'}:</p>
             {dups.map((d) => (
-              <p key={d.id}><a href={'#/person/' + d.id} onClick={(e) => { e.preventDefault(); go('/person/' + d.id); }}>{displayName(d)}</a> {d.city && `· ${d.city}`}</p>
+              <p key={d.id}><a href={'#/person/' + d.id} onClick={(e) => { e.preventDefault(); go('/person/' + d.id); }}>{displayName(d)}</a></p>
             ))}
             <div class="btn-row">
               <button class="btn" type="button" onClick={() => setDups(undefined)}>Go back to the form</button>
@@ -224,177 +375,122 @@ export function PersonEdit({ id }: { id?: ID }) {
           </div>
         )}
 
-        <div class="field"><span class="section-title">Who is this?</span>
-          <div class="checks">
-            {PICKABLE_ROLES.map((r) => (
-              <label key={r} class="check"><input type="checkbox" checked={form.roles.includes(r)} onChange={() => toggleRole(r)} />{ROLE_LABEL[r]}</label>
-            ))}
-          </div>
-        </div>
-        {isSingle && (
-          <div class="field" style="margin-bottom:14px">
-            <div class="chips">
-              <button type="button" class={`chip${form.gender === 'm' ? ' on' : ''}`} onClick={() => set({ gender: 'm' })}>Guy</button>
-              <button type="button" class={`chip${form.gender === 'f' ? ' on' : ''}`} onClick={() => set({ gender: 'f' })}>Girl</button>
+        {single && (
+          <div class="ftools">
+            <Photo id={form.photoFileIds[0]} onPick={addPhoto} onRemove={() => set({ photoFileIds: form.photoFileIds.slice(1) })} />
+            <div style="flex:1;min-width:0">
+              {form.audioProfile
+                ? <><FileList ids={[form.audioProfile.fileId]} /><button type="button" class="link-btn" onClick={() => { const f = { ...form }; delete f.audioProfile; setForm(f); }}>Remove audio profile</button></>
+                : <button type="button" class="lb" style="width:100%" onClick={() => setRecording(true)}>Audio profile</button>}
             </div>
           </div>
         )}
-        {isHelper && (
-          <label class="field"><span>What do they do?</span>
-            <input type="text" list="helper-types" value={form.helperType ?? ''} onInput={(e) => set({ helperType: e.currentTarget.value })} />
-            <datalist id="helper-types">{HELPER_TYPES.map((h) => <option key={h} value={h} />)}</datalist>
-          </label>
-        )}
 
-        <label class="field"><span>Name</span>
-          <input type="text" dir="auto" autocomplete="off" value={form.name} onInput={(e) => set({ name: e.currentTarget.value })} />
-        </label>
-        <div class="grid-2">
-          <label class="field"><span>Age</span>
-            <input type="number" inputMode="numeric" min={16} max={120} value={ageInput} onInput={(e) => setAgeInput(e.currentTarget.value)} />
+        <div class={single ? 'grid-name' : ''}>
+          <label class="field"><span>Name{single ? ' (optional)' : ''}</span>
+            <input type="text" dir="auto" autocomplete="off" value={form.name} onInput={(e) => set({ name: e.currentTarget.value })} />
           </label>
-          <label class="field"><span>City</span>
-            <input type="text" dir="auto" value={form.city} onInput={(e) => set({ city: e.currentTarget.value })} />
-          </label>
-        </div>
-
-        <div class="field"><span class="section-title">Phone</span>
-          {form.phones.map((ph, i) => (
-            <div key={i} style="display:flex;gap:6px;margin-bottom:6px">
-              <input type="tel" value={ph.number} aria-label="Phone number" onInput={(e) => { const phones = [...form.phones]; phones[i] = { ...ph, number: e.currentTarget.value }; set({ phones }); }} />
-              <input type="text" value={ph.label ?? ''} placeholder="whose? e.g. mother" aria-label="Whose number" style="max-width:40%" onInput={(e) => { const phones = [...form.phones]; phones[i] = { ...ph, label: e.currentTarget.value }; set({ phones }); }} />
-              <button type="button" class="btn small quiet" onClick={() => set({ phones: form.phones.filter((_, j) => j !== i) })}>Remove</button>
-            </div>
-          ))}
-          <button type="button" class="btn small" onClick={() => set({ phones: [...form.phones, { number: '', type: '' }] })}>{form.phones.length ? 'Add another phone' : 'Add a phone'}</button>
-        </div>
-        <div class="field"><span class="section-title">Email</span>
-          {form.emails.map((em, i) => (
-            <div key={i} style="display:flex;gap:6px;margin-bottom:6px">
-              <input type="email" value={em} onInput={(e) => { const emails = [...form.emails]; emails[i] = e.currentTarget.value; set({ emails }); }} />
-              <button type="button" class="btn small quiet" onClick={() => set({ emails: form.emails.filter((_, j) => j !== i) })}>Remove</button>
-            </div>
-          ))}
-          <button type="button" class="btn small" onClick={() => set({ emails: [...form.emails, ''] })}>{form.emails.length ? 'Add another email' : 'Add an email'}</button>
-        </div>
-
-        <label class="field"><span>{isSingle ? 'Profile' : 'About them'}</span>
-          <textarea dir="auto" class="bidi" value={form.profile.text} onInput={(e) => set({ profile: { text: e.currentTarget.value, updatedAt: Date.now() } })} />
-        </label>
-        {isSingle && (
-          <>
-            <label class="field"><span>Looking for</span>
-              <textarea dir="auto" class="bidi" style="min-height:90px" value={form.lookingFor.text} onInput={(e) => set({ lookingFor: { ...form.lookingFor, text: e.currentTarget.value } })} />
+          {single && (
+            <label class="field"><span>Age</span>
+              <input type="number" inputMode="numeric" min={16} max={120} value={ageInput} onInput={(e) => setAgeInput(e.currentTarget.value)} />
             </label>
-            <div class="grid-2">
-              <label class="field"><span>From age</span>
-                <input type="number" inputMode="numeric" value={form.lookingFor.minAge ?? ''} onInput={(e) => { const v = Number(e.currentTarget.value); const lf = { ...form.lookingFor }; if (v) lf.minAge = v; else delete lf.minAge; set({ lookingFor: lf }); }} />
+          )}
+        </div>
+
+        {single && (
+          <>
+            <label class="field">
+              <span style="display:flex;justify-content:space-between;align-items:center">Profile<button type="button" class="lb sm" style="padding:4px 12px" onClick={pasteProfile}>Paste profile</button></span>
+              <textarea dir="auto" class="bidi" value={form.profile.text} onInput={(e) => set({ profile: { text: e.currentTarget.value, updatedAt: Date.now() } })}
+                onPaste={(e) => { const t = e.clipboardData?.getData('text') ?? ''; if (t) setTimeout(() => setForm((cur) => (cur ? fillFrom(t, cur) : cur)), 0); }} />
+            </label>
+            <div class="grid-look">
+              <label class="field"><span>Looking for</span>
+                <textarea dir="auto" class="bidi" style="min-height:72px" placeholder="What are they looking for?" value={form.lookingFor.text} onInput={(e) => set({ lookingFor: { ...form.lookingFor, text: e.currentTarget.value } })} />
               </label>
-              <label class="field"><span>To age</span>
-                <input type="number" inputMode="numeric" value={form.lookingFor.maxAge ?? ''} onInput={(e) => { const v = Number(e.currentTarget.value); const lf = { ...form.lookingFor }; if (v) lf.maxAge = v; else delete lf.maxAge; set({ lookingFor: lf }); }} />
+              <label class="field"><span>Up to age</span>
+                <input type="number" inputMode="numeric" min={18} max={99} placeholder="Age" value={form.lookingFor.maxAge ?? ''} onInput={(e) => { const v = Number(e.currentTarget.value); const lf = { ...form.lookingFor }; delete lf.minAge; if (v) lf.maxAge = v; else delete lf.maxAge; set({ lookingFor: lf }); }} />
               </label>
             </div>
           </>
         )}
 
-        <div class="field"><span class="section-title">Resume &amp; photos</span>
-          {form.resumeFileIds.map((fid) => (
-            <div key={fid} style="display:flex;gap:6px;align-items:center"><FileList ids={[fid]} /><button type="button" class="btn small quiet" onClick={() => set({ resumeFileIds: form.resumeFileIds.filter((x) => x !== fid) })}>Remove</button></div>
-          ))}
-          {form.photoFileIds.map((fid) => (
-            <div key={fid} style="display:flex;gap:6px;align-items:center"><FileList ids={[fid]} /><button type="button" class="btn small quiet" onClick={() => set({ photoFileIds: form.photoFileIds.filter((x) => x !== fid) })}>Remove</button></div>
-          ))}
-          <div class="btn-row" style="margin-top:6px">
-            <label class="btn small" style="cursor:pointer">Add a resume<input type="file" accept="application/pdf,image/*" hidden onChange={(e) => { void addFiles(e.currentTarget.files, 'resume'); e.currentTarget.value = ''; }} /></label>
-            <label class="btn small" style="cursor:pointer">Add a photo<input type="file" accept="image/*" multiple hidden onChange={(e) => { void addFiles(e.currentTarget.files, 'photo'); e.currentTarget.value = ''; }} /></label>
-          </div>
-        </div>
-
-        <div class="field"><span class="section-title">Categories</span>
-          {knownTags.length > 0 && (
-            <div class="chips wrap">
-              {[...new Set([...form.tags, ...knownTags])].map((t) => (
-                <button key={t} type="button" class={`chip${form.tags.includes(t) ? ' on' : ''}`} aria-pressed={form.tags.includes(t)} onClick={() => toggleTag(t)}>{t}</button>
-              ))}
+        <div class="field"><span class="section-title">{single ? 'Contacts' : 'Phone'}</span>
+          {rows.map((r, i) => (
+            <div key={i} class="prow">
+              <input type="text" dir="auto" aria-label="Whose number" placeholder="Whose? (optional)" value={r.name} onInput={(e) => setRow(i, { name: e.currentTarget.value })} />
+              <input type="tel" aria-label="Phone number" placeholder="Phone" value={r.number} onInput={(e) => setRow(i, { number: e.currentTarget.value })} onBlur={(e) => { const d = displayPhone(e.currentTarget.value); if (d !== r.number) setRow(i, { number: d }); }} />
+              <button type="button" class="link-btn" onClick={() => setRows(rows.length > 1 ? rows.filter((_, j) => j !== i) : [{ name: '', number: '' }])}>Remove</button>
+              {phoneType(r.number) === 'landline' && <span class="hint">Landline — SMS unavailable</span>}
+              {r.personId && byId.get(r.personId)?.roles.includes('shadchan') && <span class="hint">Matches Shadchan: {byId.get(r.personId)!.name}</span>}
             </div>
-          )}
-          {!knownTags.length && form.tags.length > 0 && <div class="chips wrap">{form.tags.map((t) => <button key={t} type="button" class="chip on" onClick={() => toggleTag(t)}>{t}</button>)}</div>}
-          <div style="display:flex;gap:6px">
-            <input type="text" dir="auto" placeholder="New category, e.g. Older singles" value={newTag} onInput={(e) => setNewTag(e.currentTarget.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTags(); } }} />
-            <button type="button" class="btn small" onClick={addTags}>Add</button>
-          </div>
+          ))}
+          <button type="button" class="link-btn" onClick={() => setRows([...rows, { name: '', number: '' }])}>+ Add another phone</button>
         </div>
 
-        <div class="field"><span class="section-title">Where they came from</span>
-          <select value={form.cameFrom?.kind ?? ''} onChange={(e) => {
-            const kind = e.currentTarget.value as CameFrom['kind'] | '';
-            if (!kind) { const f = { ...form }; delete f.cameFrom; setForm(f); }
-            else set({ cameFrom: { ...(form.cameFrom ?? {}), kind } });
-          }}>
-            <option value="">Not set</option>
-            {(Object.keys(CAME_FROM_LABEL) as CameFrom['kind'][]).filter((k) => k !== 'import' || form.cameFrom?.kind === 'import').map((k) => <option key={k} value={k}>{CAME_FROM_LABEL[k]}</option>)}
-          </select>
-          {form.cameFrom && (
-            <input type="text" dir="auto" style="margin-top:6px" placeholder="Who, or where (e.g. Mrs. Katz, ChabadMatch)" value={form.cameFrom.note ?? ''} onInput={(e) => set({ cameFrom: { ...form.cameFrom!, note: e.currentTarget.value } })} />
-          )}
-          {form.cameFrom?.personId && <p class="muted small">Linked to {displayName((allPeople ?? []).find((x) => x.id === form.cameFrom!.personId) ?? { name: 'someone' })}.</p>}
+        <div class="field">
+          {form.emails.map((em, i) => (
+            <div key={i} class="prow" style="grid-template-columns:1fr auto">
+              <input type="email" placeholder="Email" value={em} onInput={(e) => { const emails = [...form.emails]; emails[i] = e.currentTarget.value; set({ emails }); }} />
+              <button type="button" class="link-btn" onClick={() => set({ emails: form.emails.filter((_, j) => j !== i) })}>Remove</button>
+            </div>
+          ))}
+          <button type="button" class="link-btn" onClick={() => set({ emails: [...form.emails, ''] })}>+ Add {form.emails.length ? 'another ' : ''}email</button>
         </div>
 
-        {isSingle && (
-          <div class="field" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:14px">
-            <b>Kohen?</b>
-            <YesNo value={form.kohen ?? null} allowUnset onChange={(v) => { const f = { ...form }; if (v === null) delete f.kohen; else f.kohen = v; setForm(f); }} />
-          </div>
-        )}
+        {single ? whoSent('Who sent it?') : whoSent('Referred by')}
 
-        <label class="field"><span>Private notes (never shared)</span>
-          <textarea dir="auto" class="bidi" style="min-height:90px" value={form.notes} onInput={(e) => set({ notes: e.currentTarget.value })} />
+        {single && attachmentBox}
+
+        <label class="field"><span>Tags</span>
+          <input type="text" dir="auto" placeholder="e.g. Chabad, Israel" value={form.tags.join(', ')} onInput={(e) => set({ tags: e.currentTarget.value.split(/[,;]+/).map((t) => t.trimStart()).filter((t, i, a) => t || i === a.length - 1) })} />
+        </label>
+        <label class="field"><span>Religious level</span>
+          <input type="text" dir="auto" placeholder="e.g. strong, moderate, light" value={String(flag('religiousLevel') ?? '')} onInput={(e) => setFactText('religiousLevel', e.currentTarget.value)} />
+        </label>
+        <label class="field"><span>Religious details</span>
+          <input type="text" dir="auto" placeholder="e.g. Chabad, Breslev, Yeshivish, tzniut" value={String(flag('religiousDetails') ?? '')} onInput={(e) => setFactText('religiousDetails', e.currentTarget.value)} />
         </label>
 
-        <details class="section">
-          <summary>More details</summary>
-          <div class="body">
-            <label class="field"><span>Date of birth</span>
-              <input type="date" value={form.dob ?? ''} onInput={(e) => { const f = { ...form }; if (e.currentTarget.value) f.dob = e.currentTarget.value; else delete f.dob; setForm(f); }} />
+        {!single && (
+          <>
+            <label class="field"><span>Profile / notes</span>
+              <textarea dir="auto" class="bidi" style="min-height:100px" value={form.profile.text} onInput={(e) => set({ profile: { text: e.currentTarget.value, updatedAt: Date.now() } })} />
             </label>
-            <label class="field"><span>Other spellings of the name (comma between)</span>
-              <input type="text" dir="auto" value={form.altNames.join(', ')} onInput={(e) => set({ altNames: e.currentTarget.value.split(',').map((s) => s.trim()).filter(Boolean) })} />
-            </label>
-            <label class="field"><span>Links (one per line)</span>
-              <textarea style="min-height:70px" value={form.links.join('\n')} onInput={(e) => set({ links: e.currentTarget.value.split('\n').map((s) => s.trim()).filter(Boolean) })} />
-            </label>
-            <div class="field"><span class="section-title">How well do I know them?</span>
-              <div class="chips wrap">
-                {(Object.keys(HOW_WELL_LABEL) as (keyof typeof HOW_WELL_LABEL)[]).map((k) => (
-                  <button key={k} type="button" class={`chip${form.howWellKnown === k ? ' on' : ''}`} onClick={() => { const f = { ...form }; if (f.howWellKnown === k) delete f.howWellKnown; else f.howWellKnown = k; setForm(f); }}>{HOW_WELL_LABEL[k]}</button>
-                ))}
-              </div>
-            </div>
-            {isSingle && (
-              <div class="field"><span class="section-title">OK to share their profile?</span>
-                <div class="chips wrap">
-                  {(Object.keys(OK_TO_SHARE_LABEL) as (keyof typeof OK_TO_SHARE_LABEL)[]).map((k) => (
-                    <button key={k} type="button" class={`chip${form.okToShare === k ? ' on' : ''}`} onClick={() => { const f = { ...form }; if (f.okToShare === k) delete f.okToShare; else f.okToShare = k; setForm(f); }}>{OK_TO_SHARE_LABEL[k]}</button>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div class="field" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-              <b>Only calls or SMS (kosher phone)?</b>
-              <YesNo value={!!form.reach?.rules.includes('calls-or-sms-only')} onChange={(v) => {
-                const rules = (form.reach?.rules ?? []).filter((r) => r !== 'calls-or-sms-only');
-                if (v) rules.push('calls-or-sms-only');
-                set({ reach: { ...(form.reach ?? {}), rules } });
-              }} />
-            </div>
+            {attachmentBox}
+          </>
+        )}
+
+        {single && (
+          <div class="yn-row" style="border:0;padding:0;margin:0 0 14px">
+            <span>Suggested to me?</span>
+            <YesNo value={form.suggestedToMe ?? null} allowUnset onChange={(v) => { const f = { ...form }; if (v === null) delete f.suggestedToMe; else f.suggestedToMe = v; setForm(f); }} />
           </div>
-        </details>
+        )}
+        <div class="field"><span class="section-title">How well do I know them?</span>
+          <div class="chips wrap">
+            {(Object.keys(HOW_WELL_LABEL) as (keyof typeof HOW_WELL_LABEL)[]).map((k) => (
+              <button key={k} type="button" class={`chip${form.howWellKnown === k ? ' on' : ''}`} aria-pressed={form.howWellKnown === k} onClick={() => { const f = { ...form }; if (f.howWellKnown === k) delete f.howWellKnown; else f.howWellKnown = k; setForm(f); }}>{HOW_WELL_LABEL[k]}</button>
+            ))}
+          </div>
+        </div>
 
         <div class="form-actions">
+          <button class="btn primary" type="button" onClick={() => save()}>Save {kindWord}</button>
           <button class="btn quiet" type="button" onClick={cancel}>Cancel</button>
-          <button class="btn primary" type="button" onClick={() => save()}>Save</button>
         </div>
       </main>
+
+      {recording && (
+        <Sheet title="Audio profile" onClose={() => setRecording(false)}>
+          <Recorder onCancel={() => setRecording(false)} onSave={async (blob) => {
+            const ext = blob.type.includes('mp4') ? 'm4a' : blob.type.includes('ogg') ? 'ogg' : 'webm';
+            const fid = await saveFile(blob, `Audio profile.${ext}`);
+            set({ audioProfile: { fileId: fid } });
+            setRecording(false);
+          }} />
+        </Sheet>
+      )}
     </>
   );
 }

@@ -159,6 +159,7 @@ function DeletedCard() {
 export function Settings() {
   const [file, setFile] = useState<File>();
   const waitDays = useLive(() => getSetting('waitDays', WAIT_DAYS_DEFAULT), []);
+  const myGender = useLive(() => getSetting<string>('myGender', ''), []);
   const counts = useLive(async () => ({ people: await db.people.filter((p) => !p.deletedAt && !p.roles.includes('me')).count(), inbox: await db.inbox.count() }), []);
 
   const pick = (e: Event) => {
@@ -177,6 +178,14 @@ export function Settings() {
           {(['me', 'helping'] as Mode[]).map((m) => (
             <button key={m} type="button" class={`chip${mode.value === m ? ' on' : ''}`} style="margin:0 6px 6px 0" aria-pressed={mode.value === m} onClick={async () => { await chooseMode(m); showToast('Changed. Nothing was lost.'); }}>{MODE_LABEL[m]}</button>
           ))}
+        </div>
+
+        <div class="card">
+          <h2>I am</h2>
+          {([['m', 'Single guy'], ['f', 'Single girl']] as const).map(([g, label]) => (
+            <button key={g} type="button" class={`chip${myGender === g ? ' on' : ''}`} style="margin:0 6px 6px 0" aria-pressed={myGender === g} onClick={async () => { await setSetting('myGender', g); showToast('Saved. “Idea for me” will be filed as a ' + (g === 'm' ? 'girl' : 'guy') + '.'); }}>{label}</button>
+          ))}
+          <p class="muted small" style="margin:4px 0 0">Used to file “Idea for me” under the right list.</p>
         </div>
 
         <BackupCard />
@@ -213,7 +222,7 @@ export function Settings() {
         <div class="card">
           <h2>About</h2>
           <p style="margin-top:0">ZivugBase keeps everything on this phone. Nothing is sent anywhere unless you send it.</p>
-          {counts && <p class="muted small">{plural(counts.people, 'person', 'people')} · {plural(counts.inbox, 'Inbox item')}</p>}
+          {counts && <p class="muted small">{plural(counts.people, 'person', 'people')} · {plural(counts.inbox, 'Intake item')}</p>}
           <p class="muted small">Build {import.meta.env.MODE === 'production' ? 'release' : 'development'}</p>
         </div>
       </main>

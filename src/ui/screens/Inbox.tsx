@@ -57,12 +57,12 @@ export function Inbox() {
 
   return (
     <>
-      <TopBar title="Inbox" backTo="/home" right={<SettingsButton />} />
+      <TopBar title="Intake folder" backTo="/home" right={<SettingsButton />} />
       <main>
         <QuickActions />
         {shared === '1' && (
           <div class="notice">
-            <p style="margin-top:0"><b>Saved to Inbox ✓</b></p>
+            <p style="margin-top:0"><b>Saved to the Intake folder ✓</b></p>
             <div class="btn-row">
               <button class="btn primary" type="button" disabled={!fresh.length} onClick={() => fresh[0] && go('/inbox/' + fresh[0].id, { replace: true })}>File it now</button>
               <button class="btn" type="button" onClick={leaveToPreviousApp}>Later</button>

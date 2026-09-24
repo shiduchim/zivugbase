@@ -90,7 +90,7 @@ export function QuickFile({ text, getItem, onKeep, allowEmpty, senderHint }: { t
   };
 
   /* The owner is single in both modes; in shadchan mode "for a friend" is a single to set up. */
-  const kinds: [FileKind, string][] = [['idea', 'Idea for me'], ['friend', mode.value === 'me' ? 'For a friend' : 'A single'], ['shadchan', 'A shadchan']];
+  const kinds: [FileKind, string][] = [['idea', 'Idea for me'], ['friend', 'A single'], ['shadchan', 'A shadchan']];
   const single = kind !== 'shadchan';
 
   return (
@@ -126,7 +126,7 @@ export function QuickFile({ text, getItem, onKeep, allowEmpty, senderHint }: { t
               <span class="small"> · added {relativeDay(p.createdAt).toLowerCase()}{p.suggestedToMe ? ' · suggested to you before' : ''}</span>
             </div>
           ))}
-          <div class="small" style="margin-top:6px">Saving adds a separate person. To add this to the one above, keep it and use “Add to someone” in the Inbox.</div>
+          <div class="small" style="margin-top:6px">Saving adds a separate person. To add this to the one above, keep it and use “Add to someone” in the Intake folder.</div>
         </div>
       )}
 

@@ -23,7 +23,7 @@ export function AppHeader({ right }: { right?: ComponentChildren }) {
   return (
     <header class="apphead">
       <span class="brand">ZivugBase</span>
-      {right}
+      {right && <span class="right">{right}</span>}
     </header>
   );
 }

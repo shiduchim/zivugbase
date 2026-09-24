@@ -83,7 +83,19 @@ everything links together."
 
 ## Progress
 
-- Step 1 (the look) is built. It still has to be checked on the phone.
+- Built, still to be checked on the phone:
+  - the look
+  - the person page in PeerMatch's order, with separate Guy/Girl and Shadchan layouts
+  - the PeerMatch form with the owner's changes
+  - Attach only / Attach + parse text (PDF.js is bundled into the app; OCR comes from the internet)
+  - folders with Add to… and the − / + zoom
+  - Home: My profile, Calls due for anyone, Memos, Backup now
+  - the Intake folder
+  - I am (single guy / girl)
+  - Make match
+- Removed because the owner didn't choose them: the Ideas / Details & categories / Where they
+  came from sections, the Favorites star, and Delete on the person page (deleting is from the
+  list's share bar, as in PeerMatch).
 
 ## Order of work
 

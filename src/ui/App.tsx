@@ -11,6 +11,7 @@ import { ImportReview } from './screens/ImportReview';
 import { Inbox } from './screens/Inbox';
 import { InboxItemScreen } from './screens/InboxItem';
 import { Capture } from './screens/Capture';
+import { MakeMatch } from './screens/MakeMatch';
 
 export function App() {
   const r = route.value;
@@ -37,6 +38,7 @@ export function App() {
     case 'capture': screen = <Capture key={b} kind={b ?? 'paste'} />; break;
     case 'settings': screen = <Settings />; break;
     case 'import': screen = <ImportReview />; break;
+    case 'match': screen = <MakeMatch />; break;
   }
   if (!screen) screen = <Home />;
   /* A person's page is like PeerMatch's detail: no tabs, the note bar at the bottom instead. */
