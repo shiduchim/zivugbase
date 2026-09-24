@@ -1,633 +1,697 @@
-# ZivugBase — Research findings and build plan
+# ZivugBase — Product design and build plan
 
-Stage 0 of a multi-stage rebuild. **No application code has been written for this plan yet.**
-This file is the handoff between stages: every later stage starts by reading it.
+Revision 5 — 2026-09-24. **Design only; no application code has been written for it yet.**
+This is the handoff between stages: every later stage starts by reading it, and code must follow
+the design principles in §2.
 
-Revision 4 — 2026-09-24. Reference app: PeerMatch v131 (`shiduchim/match`, `main` @ `7fdfced`).
-Rev 3 adds: dating sites and platforms (§2.5), one card shared by both modes (§3.5),
-PeerMatch import mapping (§5.1), and the owner's answers to the rev 2 questions.
-Rev 4 adds: organizing hundreds of shadchanim — shared categories, where each contact came
-from, smart and manual lists, bulk import and tagging (§3.4).
+Reference app: PeerMatch v131 (`shiduchim/match`, `main` @ `7fdfced`).
+Revision history: rev 1 audit + first model · rev 2 capture-first + two modes · rev 3 dating
+sites, shared cards, import mapping · rev 4 organizing hundreds of shadchanim · **rev 5 a
+research round on simplicity, privacy, backup, accessibility, errors and real workflows; the
+model is simplified and the whole plan is consolidated into one design.**
 
 ---
 
-## 0. The answer in one paragraph
+## 0. In one paragraph
 
-ZivugBase is a **capture-first shidduch organizer** with **two modes**. The owner's biggest
-problem is not organizing — it is that information arrives **outside the app** (an idea by
-email, another by WhatsApp, a phone call saying "call this shadchan", someone asking for an
-updated profile) and typing it in takes time. So the heart of the app is an **Inbox** that
-accepts anything from any channel in one gesture, **does the typing itself** (detects what the
-item is, extracts names, ages, phones, who sent it, checks for duplicates), and files it with
-**one tap**. On top of that sit two modes over one shared database:
-**Single mode** (you are the single: offers sent to you, the shadchanim you work with, your own
-profile and who has which version of it) and **Shadchan mode** (the PeerMatch successor:
-guys, girls, shadchanim, and matches between them). It is a free web app — no app store, no
-cloud — with an **optional** Android add-on for the few things a web app cannot do.
+ZivugBase is a private, free, **capture-first shidduch organizer** that anyone can use without
+learning it. Information arrives outside the app — WhatsApp, email, phone calls, dating sites —
+so the app's first job is to take it in with **one gesture** and **do the typing itself**. Its
+second job is to answer, every morning, **"who do I need to deal with today?"** in one list.
+Everything else follows three rules: **one person = one record**, **one way to do each thing**,
+and **nothing leaves the phone unless you send it**. Two modes over one shared database: **for
+me** (you are single) and **for people I help** (shadchan work). No accounts, no cloud, no app
+store; an optional Android add-on exists only for what a web app cannot do.
 
 ---
 
 ## 1. Decisions recorded
 
-| # | Question | Answer |
+| # | Topic | Decision |
 |---|---|---|
-| — | Who uses it | The owner is **a single guy**. The app must also work for **anyone**: singles (guys or girls) and people who make matches. |
-| 1 | "Offers sent to me" | Offers sent to the **user as a single**. → Two modes: **Single** (shadchanim + girls suggested / met) and **Shadchan** (match guys and girls, plus a shadchanim list — kept, see §5). |
-| 2 | Follow-up dates on offers/suggestions | **Try it.** |
-| 3 | Install | **No install by default**, so anyone can use it easily. Offer an **optional** install only for features that are really worth it (§9). |
-| 4 | Cloud | **No cloud service.** All data stays on the device. |
-| — | The #1 pain | "Info is sent to me outside the app and I don't like spending time entering info." → Capture-first design (§2). |
-| 5 | What PeerMatch's data is | PeerMatch's Girls are **single girls, some suggested to the owner**, tracked so they can also be **offered to friends**. → One card serves both modes (§3.5); import mapping in §5.1. |
-| 6 | App language | **English for now.** App text kept in one place so Hebrew/Russian can be added later. |
-| 7 | Voice to text | **Transcribe**, using Chrome's recognition (on-device when available, otherwise Google's). |
-| — | Dating sites | Ideas also come from **SawYouAtSinai, ChabadMatch, BasheretNow** and similar. Everyone contacted there must be recorded quickly so they are **not offered again** (§2.5). |
+| 1 | Who it's for | The owner is **a single guy**; the app must work for **anyone** — singles (guy or girl), parents, friends, shadchanim. |
+| 2 | Modes | **"For me"** (single) and **"For people I help"** (shadchan). Both can be on. Kept after challenge — see §6.1. |
+| 3 | Follow-ups on ideas | Yes, try it. |
+| 4 | Install | **None by default.** Optional Android add-on only for features really worth it (§20). |
+| 5 | Cloud | **None.** Everything stays on the device. |
+| 6 | #1 pain | Information arrives outside the app; typing it in wastes time → capture-first (§8). |
+| 7 | PeerMatch's data | Its Girls are single girls, some suggested to the owner, kept so they can be **offered to friends** → one person record serves both modes. |
+| 8 | Language | English app text for now; all text kept in one place for Hebrew/Russian later. |
+| 9 | Voice | Voice notes are transcribed (on the phone when possible, otherwise Chrome's recognition). |
+| 10 | Dating sites | SawYouAtSinai, ChabadMatch, BasheretNow… are sources; everyone contacted there is recorded so they're **not offered again** (§8.5). ChabadMatch shows the owner most names. |
+| 11 | Hundreds of shadchanim | Shared categories, where each contact came from, lists, bulk import and tagging (§9). |
 
 ---
 
-## 2. The #1 problem: capture from outside the app with no typing
+## 2. The ten design principles (rules for the code)
 
-### 2.1 Principles
-1. **One gesture to capture, from wherever the information is.** Never "open the app, find
-   the right screen, fill in a form".
-2. **Capture now, file later.** Every captured thing lands in the **Inbox** as its own item.
-   Nothing is ever overwritten (PeerMatch's share-in overwrote itself — see §7).
+Derived from the research in this document. Every screen and every change is checked against them.
+
+1. **Capture in one gesture, file in one tap.** Never make the user type what already exists
+   somewhere — a message, a PDF, a contact, a site's list.
+2. **One person = one record.** Whatever roles a person has (single, shadchan, a girl's mother,
+   a reference, a friend), they exist once. Duplicates are **never** merged silently and
+   **never** created silently.
 3. **The original is the record.** The message, PDF, photo or voice note is kept exactly as it
-   arrived. Structured fields are extracted from it for search and duplicate-checking, and
-   are **never required**.
-4. **The app proposes, you tap.** For each item the app guesses what it is and offers
-   one-tap actions. You correct only when it guessed wrong.
-5. **File a batch in a minute.** A triage screen shows one item at a time with the likely
-   action highlighted; one tap files it and moves to the next.
-
-### 2.2 Capture channels — what works with no install
-
-| Where the info is | How it gets in (no install) | Taps | With the optional Android add-on |
-|---|---|---|---|
-| **WhatsApp** message, PDF, photo, voice note, contact | Select → **Share → ZivugBase**. Several messages at once are fine. | 2–3 | Messages from known shadchanim are **captured automatically** from notifications (0 taps) |
-| **WhatsApp**, keeping who sent it | Select messages → **Copy** → open ZivugBase → **Paste**. Copying several messages includes each sender's name and time, so the shadchan is recognized. | 3–4 | same |
-| **Email** text | Press-and-hold the text → Select all → **Share → ZivugBase** (or Copy → Paste) | 3–4 | Email notifications from known contacts are captured as a pointer ("Email from Mrs. Katz: *Shidduch idea…*") |
-| **Email** attachment (PDF / photo resume) | Tap attachment → **Share → ZivugBase** | 2 | same |
-| **SMS** | Select → Share, or Copy → Paste | 2–3 | Captured from notifications |
-| **Phone call** (someone told you something) | Right after the call: long-press the ZivugBase icon → **"Voice note"** → speak. The app transcribes and proposes actions. | 2 + speaking | A popup appears **by itself after every call** with a known contact |
-| **In person / anywhere** | Same **Voice note** shortcut, or the mic button on Home | 2 + speaking | same |
-| **Paper resume / screenshot** | **Photo** button → optional text reading (runs on the phone) | 2 | same |
-| **A contact in your phone book** | "Add from contacts" (Android contact picker) — no typing | 2 | same |
-| **A call you made from ZivugBase** | Post-call popup (kept from PeerMatch v129): Yes/No answered, voice or typed note | 1 + note | Knows the real call duration and whether it was answered |
-
-Two platform facts shape this table:
-- To appear in Android's **Share menu**, the web app must be **added to the home screen**
-  (one tap in Chrome's menu, no app store, no permissions). Everything else works in a normal
-  browser tab.
-- A web app can **read the clipboard** only with permission; if Android refuses, a paste box
-  opens so it's one long-press → Paste.
-
-### 2.3 What the app does to every captured item
-1. **Detect what it is**: a profile / offer · a contact card · a task ("call…", "send…") ·
-   a request to update your profile · a reply or note on something existing.
-2. **Extract** (English, Hebrew, Russian — PeerMatch's parser, extended): name, age (stored
-   *with the date*, so it stays correct), city, phones, emails, parents' names, school,
-   who sent it (from a copied WhatsApp header or a known phone number), dates ("Thursday",
-   "next week").
-3. **Link and warn**: match phones and names to existing shadchanim and offers →
-   *"From Mrs. Katz"* · *"⚠ Chaya L. was suggested by Mr. Stein on May 3 — you said No
-   (age)"* · *"⚠ You went out with her in 2025"*. Matching uses several signals (phone,
-   name across Hebrew/English/Russian spellings, parents, city, school) and **never
-   auto-merges**; you confirm.
-4. **Offer one-tap actions**, e.g.
-   `New offer from Mrs. Katz` · `Add to existing offer: Chaya L.` · `New shadchan: Rabbi Cohen` ·
-   `Call Rabbi Cohen — today / tomorrow` · `Update my profile` · `Note on Mrs. Katz` · `Dismiss`.
-
-### 2.4 Your four examples, end to end
-
-1. **Shidduch idea by email.** In Gmail, Select all → Share → ZivugBase (or share the
-   attached PDF). The app sees a profile, pulls out her name, age and city, and asks
-   *"From which shadchan?"* with your most recent shadchanim first → **1 tap** → a new
-   offer, already checked for duplicates.
-2. **Shidduch idea by WhatsApp.** Select the message(s) → Share → ZivugBase. Same as above.
-   If you *copy* instead, the sender's name is included, so even the shadchan question is
-   skipped.
-3. **On the phone: "call Rabbi Cohen, 052-…".** After hanging up, long-press the icon →
-   Voice note → say it. The app hears a name, a phone number and "call" → proposes
-   **`New shadchan: Rabbi Cohen · remind me to call: today / tomorrow`** → **1 tap**.
-   (With the add-on, the popup appears on its own when the call ends.)
-4. **"Send your updated profile with these new items."** Voice note or paste → the app files
-   it as a **profile update checklist** ("new job", "moved", "add height") on *My profile*.
-   When you update the profile (edit text or attach the new PDF), the app shows
-   **"11 shadchanim have an older version — send the new one?"** → one tap each, logged.
-
-### 2.5 Dating sites and platforms (SawYouAtSinai, ChabadMatch, BasheretNow…)
-
-**The goal:** everyone you already contacted, declined or were declined by on a site is in
-ZivugBase, so when anyone suggests her again, the app says so.
-
-**Each site is a *Source*** — recorded like a shadchan, so every offer shows where it came from
-(a site, a site's matchmaker, a shadchan, a friend). A person can carry her **site profile
-number / link** for each site she's on.
-
-**Getting a whole site's worth in at once — "Paste a list":**
-1. On the site, open the list (search results, your matches, people you contacted) →
-   **Select all → Copy**. (If the site is an app and won't copy: take **screenshots** of the list
-   and share them all at once — the text is read on the phone.)
-2. In ZivugBase → **Paste a list**. The app splits it into people and shows a table:
-   *23 people found* — first name/name, age, city, profile number where shown. Untick mistakes.
-3. One tap for all of them: **"Contacted on ChabadMatch — Sep 2026"** (or *Declined on
-   SawYouAtSinai*, *She declined*, *Went out*). Each becomes a light card + an offer in that
-   status. Duplicates with existing cards are merged only after you confirm.
-
-The first time for each site, a **sample paste** from you (names can be removed) lets the reader
-be tuned to that site's exact layout; after that it's automatic. Until then, the general list
-reader handles "name, age, city" lines, and **typing a quick list** (one person per line,
-`Chaya 26 Crown Heights`) is always available as a last resort.
-
-**When she is suggested again**, the warning uses what's known:
-- **Same site profile number or link** → certain: *"You contacted her on ChabadMatch, Sep 2026."*
-- **Same name** (across Hebrew/English/Russian spellings) + age + city → likely.
-- **Only age + city match** → shown as *possible*. This only matters for the few entries
-  saved without a name. (ChabadMatch's FAQ says names are limited for singles, but the owner
-  sees the names of most people there, so most ChabadMatch entries will carry a name and get
-  the normal name-based warning.) When a name is learned later, one tap confirms
-  *"same person"* and joins the records, so it's certain from then on.
-
-**Email alerts** from sites ("You have a new match…") can be shared in like any email; the
-site is recognized from the text and set as the source automatically.
+   came. Extracted fields exist to help search and duplicate-checking — **never required**.
+4. **Where things stand is always one line, at the top.** Every person and every idea shows its
+   status, whether you're waiting and since when, the next step, and last contact — never buried.
+5. **One list for today.** Everything needing attention is on Home in one list, with the reason
+   and a one-tap action. No second place to check.
+6. **One way to do each thing, one owner in the code.** One share flow, one timeline, one search,
+   one capture inbox. (PeerMatch had 22 files that could send a message.)
+7. **Nothing leaves the phone unless you send it — and you see it first.** Outgoing messages are
+   built **only** from fields marked shareable, and the exact text is shown before sending.
+   Private fields cannot go out.
+8. **Nothing is lost.** Record before handing off to another app; **Undo** instead of
+   "Are you sure?"; deleted items kept 30 days; forms saved as drafts; backups reminded. Every
+   failure says **what happened, what is safe, what to do next**.
+9. **Plain words, big targets, thumb reach.** Words, not icon-only buttons; touch targets at least
+   48 px; main actions at the bottom of the screen; follows the phone's text size; nothing that
+   exists **only** as a swipe or long-press.
+10. **The app grows with the data.** Empty screens teach what to do; filters, the A–Z index and
+    lists appear when there is enough data to need them. No tutorial, nothing to configure first.
 
 ---
 
-## 3. Two modes over one database
+## 3. What rev 5 changes — challenges to our own plan and to PeerMatch
 
-The mode only changes **which tabs you see**. Shadchanim, Inbox, tasks, history and files are
-shared, so switching never loses anything. First launch asks: *I'm a single (guy / girl)* or
-*I help make matches*. It can be changed any time on Home.
+The owner's research brief asked to challenge assumptions, merge concepts and remove features.
 
-| | **Single mode** (the owner's daily use) | **Shadchan mode** (PeerMatch successor) |
+### 3.1 Merged (fewer concepts, same power)
+
+| Before | After | Why |
 |---|---|---|
-| Bottom tabs (small) | **Home · Offers · Shadchanim · My profile** | **Home · Guys · Girls · Shadchanim · Shidduchim** |
-| Main object | **Offer** — someone suggested to you | **Card** (a single) and **Suggestion** (a pair) |
-| Your own profile | Central: versions, who has which version | Not needed |
-| Shadchanim | Who has your profile, what they sent you, keep in touch | Who you send cards to, who sends you cards |
+| Separate **Card** (single), **Contact** (shadchan, contact person) and **Me** | **Person**, with roles | One person = one record (a shadchan who's also a girl's mother; the owner, who is single *and* matches friends). One phone number → one person → duplicate-checking works everywhere. |
+| "Suggestion" / "Offer" / "Shidduch" / "Match" | **Idea** | The owner's own word ("someone sent me a shidduch idea"). One word in both modes. |
+| **Submission** object | an **Activity** of kind *Sent profile* | "Who has my profile / which version" is computed from what was sent. One less object. |
+| **Task** object (due date + note) | **Next step** on a person or idea: *what + when*, with Snooze | Avoids becoming a task manager; one next step per person/idea keeps it simple. |
+| Manual **Waiting** toggle (PeerMatch) | **Automatic**: sending starts waiting; logging a reply or a call ends it. Manual override kept. | One less thing to remember; "no answer in 5 days" appears in Today by itself. |
+| Last-call banner + waiting badge + call reminder (3 PeerMatch features) | one **"Where things stand" line** | Principle 4. |
+| Home panels: calls due / waiting / follow-ups / check-ins | one **Today** list, most urgent first, each row with its reason | Principle 5 — one place to look at 9 AM. |
+| Quick flags + tags + religious level + body type (4 PeerMatch systems) | one **Categories** system (tap chips) | One vocabulary for people and shadchanim; private ones locked. |
+| "Talked by phone" / "Met in person" checkboxes | derived from the **timeline** (a logged call = talked by phone; *Met in person* is a one-tap entry) | Record once, not twice. |
+| Person photo + profile screenshot + PDF attachment (3 slots) | **Photos** and **Resume** (a resume is a PDF *or* an image) | Two clear slots. |
+| Sender name/phone (4 legacy fields) + Contact 1/2 + profile phone | the person's own phone + **Contact people** (linked persons: mother, friend, rav…) | One model instead of three generations of fields. |
+| Smart lists / manual lists / saved searches | **Lists** — a list is a saved search or a hand-picked group | One concept. |
+| Make Match as its own flow | **New idea** from two selected people, then Share | Same flow as any idea. |
 
-### 3.1 Single mode
+### 3.2 Removed from PeerMatch
 
-**Home**
-1. **Capture bar** — `Paste` · `Speak` · `Photo` · `+`
-2. **Inbox** — "4 new items" → triage (only shown when there are any)
-3. **Action items** — calls due · shadchanim due for a check-in · offers waiting on an answer
-   · follow-ups due · profile update pending
-4. **Active offers** — looking into / dating
-5. **Recently added**
-6. **Data** — last backup · Save / Email backup · Restore · Import · storage protected Yes/No
-   · mode switch · version
+| Removed | Replaced by |
+|---|---|
+| Four WhatsApp send queues + the global `localStorage` patch | one share flow and one queue |
+| Guided voice (the app prompts field by field) | speak freely → the app extracts the fields (**owner to confirm**, §25) |
+| Referral nesting in the Shadchan list (4 style files, v98–v101) | "Referred by" on the person + *group by referrer* when wanted |
+| "Are you sure? This cannot be undone" deletes | Undo + Recently deleted (30 days) |
+| Logging a send as done the moment WhatsApp opens | recorded as *sending*, then **"Sent? Yes / No"** on return |
+| Separate "Copy" button in the selection bar | *Copy* is one of the channels in the share flow |
+| Every layout patch / MutationObserver / screen-rewrapping file | one component per screen |
 
-**Offers** (girls suggested to you — "previous girls sent or met" is a filter here)
-- Chips: **Active · Looking into · Dating · Went out · Declined · Contacted on a site · All**,
-  plus *by source* (a shadchan or a site).
-- Row: her name, **current age**, city, source — shadchan or site (and "also by 2 others"),
-  stage, how long it has been waiting.
-- **Stages**: New → Looking into → **Yes** / **No** (a quick no is kept apart from a
-  no after looking into, as MyShadchan does) / Maybe later → Waiting for her side → She said
-  yes / no → **Dating** (date 1, 2, 3… with notes) → **Engaged** / **Ended** (who ended it, why).
-- The **original message / PDF / photo** is always one tap away.
-- **Several shadchanim can suggest the same girl** — one offer, all of them recorded,
-  the first suggester credited.
-- **Duplicate and "already went out" warnings** at capture time.
-- **References** (people to ask about her): name, how they know her, call status
-  (answered / no answer / call back), what they said.
-- **Follow-up date** ("shadchan gets back to me Thursday").
+### 3.3 Added because research showed a big gain
 
-**Shadchanim**
-- Chips: **All · Calls due · Check-in due · Waiting · Has my profile · Outdated profile**.
-- Row: name, communities, **has your profile (version, date)**, offers they sent, last contact.
-- **Keep-in-touch interval** per shadchan ("every 30 days") → shows up on Home when due.
-  Staying on shadchanim's radar is part of the single's job; this does it for you.
-- Call reminders (kept), waiting for reply (kept), referral grouping (kept).
-- Stats: offers sent to you, how many led to a date.
-
-**My profile**
-- Your profile text (English / Hebrew / Russian), PDF resume(s), photos, key facts,
-  what you're looking for.
-- **Versions**: every saved change is a dated version with a short "what changed".
-- **Who has it**: every shadchan you sent it to, which version, when; outdated ones flagged.
-- **Pending updates checklist**, filled from captured requests (§2.4 example 4).
-- **Send to shadchan(s)**: PDF-first, optional photo, language filter, a ready intro message
-  ("Hi, this is … here is my updated profile"), one tap per recipient, logged.
-
-### 3.2 Shadchan mode
-The PeerMatch successor, restructured (details in revision 1's design, kept here in short):
-- **Guys / Girls** — the rolodex of cards with filters (current age, status, tags, flags,
-  languages, religious level, city, source), **smart and manual Lists**, compact card rows,
-  checkbox selection kept across tabs.
-- **Shidduchim** — each suggested pair with both sides' answers (boy's side asked first by
-  default), dates, decline reasons, and a warning if the same pair comes up again.
-- **Sent to** tracking — which shadchan has which card, repeat-send warning.
-- **Find matches** for a card — opposite-gender active cards inside the age limits, not
-  already tried.
-- **Shadchanim list: kept.** In shadchan mode you still send cards to other shadchanim and
-  receive cards from them; the list is where that network lives.
-
-### 3.4 Organizing hundreds of shadchanim (and singles)
-
-Researched how phone books (Google Contacts labels), personal CRMs (Monica, Dex, Clay, folk),
-sales CRMs (HubSpot active vs static lists), recruitment agencies (candidate and client
-specialty tagging), and information-architecture work on tags vs folders handle large contact
-sets. What carries over:
-
-**1. One shared set of categories for singles *and* shadchanim.** The categories you'd put on
-a shadchan (*handles older singles, BT, divorced…*) are the same ones that describe a single.
-Recruitment agencies do exactly this: candidates' skills and clients' specialties use one
-vocabulary, so search matches them. With one shared set, the app can answer on its own:
-- *Single mode:* **"Who should have my profile?"** — your profile's categories vs every
-  shadchan's → *"38 shadchanim work with singles like you; 14 don't have your profile yet —
-  send?"*
-- *Shadchan mode:* **"Who should get this card?"** — ranked by fit and by how responsive each
-  shadchan is.
-
-**2. Categories as tap-to-pick chips, not typed tags.** Free-typed tags turn into a mess
-("BT", "baal teshuva", "Baal Teshuvah" become three different tags). The research is
-consistent: group them into **categories with fixed options** (faceted classification). You
-tap; you never type. You own the list — add, rename, merge or hide options any time.
-
-Starting set (all editable):
-
-| Category | Options | On a shadchan | On a single |
-|---|---|---|---|
-| Age | under 25 · 25–30 · 30–35 · 35–45 · 45+ | ranges they handle | worked out from the age |
-| Religious level | Chabad · Chassidish · Yeshivish · Modern Yeshivish · Modern Orthodox · Dati Leumi · Traditional · Not religious | several | usually one |
-| Background | Baal teshuvah · FFB · Convert · Russian-speaking · Sephardi · Ashkenazi · Israeli · English-speaking · French-speaking | several | several |
-| Marital status | Never married · Divorced · Divorced with kids · Widowed | several | one |
-| Work / learning | Learning full-time · Learning and working · Working · Good job / professional · Studying | several | one |
-| Location | regions (Jerusalem, Beit Shemesh, Bnei Brak, Center, North, South, Crown Heights, Lakewood, …) | several | worked out from the city |
-| Languages | English · Hebrew · Russian · French · Yiddish | several | several |
-| 🔒 Appearance | your own private scale | what they handle | your private note |
-| 🔒 Special situations | Health / medical · Special needs · Fertility / genetic · Other sensitive | what they handle | private |
-| Shadchan only: how they work | Professional · Volunteer · Organization · Site matchmaker · Rebbetzin · Friend | | |
-| Shadchan only: reach them by | WhatsApp · Calls only (kosher phone) · Email | | |
-
-🔒 = **private**: never included in anything you send, shown with a lock, and can be hidden
-completely. Everything stays on your phone.
-
-**3. Where each contact came from.** Every shadchan (and every single) records **how you got
-them**, picked from chips, plus the date added:
-*Referred by a person* (linked to that person — a shadchan, friend or relative, so the
-**referral tree** shows who introduced whom) · *Friend* · *Family* · *Internet search* ·
-*Dating site's shadchan list* (which site) · *WhatsApp group* (which group) · *Organization* ·
-*Event / shiur* · *Ad / newspaper* · *Already knew them* · *Other* — with an optional note
-(*"met at the Kiddush in Beit Shemesh"*). This answers **"where do my good shadchanim come
-from?"**. Combined with the usefulness numbers (point 7), you can see, for example, that
-friends' referrals send better offers than internet searches. The Inbox fills it in when it
-can (a contact shared from a WhatsApp group becomes *WhatsApp group: <name>*).
-
-**4. Lists: smart and manual** (HubSpot's active vs static lists, Google's labels).
-- **Smart list** = a saved combination of categories that updates itself: *"Older + BT +
-  Jerusalem"*. A new shadchan tagged that way appears in it automatically.
-- **Manual list** = hand-picked: *"Top 10"*, *"Send my new profile to these"*,
-  *"Rosh Hashanah greetings"*.
-- A shadchan can be in **any number of lists** — labels, not folders.
-- Each list can have its own **keep-in-touch interval** (*Top 10: every 2 weeks; everyone
-  else: every 2 months*).
-
-**5. Phone-book habits for long lists**: **A–Z index** down the side · **Favorites** (star)
-pinned on top · **Recent** · search across every field, category and note, forgiving of
-spelling · **Group by** letter / region / category / where they came from / last contact ·
-**merge duplicates** (same phone number).
-
-**6. Getting hundreds in and categorized without typing**:
-- **Bulk import** from your phone's contacts (the contact picker lets you tick many at once),
-  from a shared contacts file (`.vcf`), or from a WhatsApp group chat export — shown as a
-  table, *"all of these are shadchanim, from: WhatsApp group X"* in one tap, duplicates merged.
-- **Bulk tagging**: tick 30 shadchanim → set a category, a source or a list in one action.
-- **Tagging sprint**: one shadchan per screen, tap the chips, next — like filing the Inbox.
-  Hundreds of shadchanim in one sitting.
-- **Suggested categories**: the app proposes them from what it already knows. Examples:
-  PeerMatch's free-text tags, the notes, and the offers a shadchan has sent you (*"Mrs. Katz
-  sent you 12 offers, mostly 30+ and Russian-speaking — add these?"*). You confirm with one tap.
-
-**7. Which shadchanim are actually useful**: per shadchan, per list and per source — offers
-sent to you, how many you looked into, how many led to a date, how fast they reply.
-
-### 3.5 One card, two uses
-A girl suggested **to you** may also be someone you'd suggest **to a friend**. She exists
-**once**, as one card:
-- in **single mode** she appears in *Offers*, with your own stage (looking into, declined,
-  went out…);
-- in **shadchan mode** she appears in *Girls*, available to suggest to your friends — with a
-  small private marker of your own history with her (*offered to you · you declined*), so
-  nothing embarrassing slips through.
-Friends you match are **Guy cards** in shadchan mode.
+**Today** list · **"Where things stand"** line · **Undo / Recently deleted** · **Sent? Yes/No** ·
+**search words become filters** ("jerusalem 30 last year") · **Compare two people** ·
+**emailed backup as a PDF** instead of a text file · **encrypted backups** · **photos cleaned of
+hidden location data** · **first run that offers Restore / Import / Start** · **drafts** ·
+**CSV import** (for people who kept a spreadsheet).
 
 ---
 
-## 4. What PeerMatch gets right — all of this is kept
+## 4. Words used in the app
 
-### Getting information in
-Paste profile with auto-fill · Android Share → app (text, image, PDF) · WhatsApp chat-export
-import (profiles + vCard contacts + history) · **trilingual parsing** (English / Hebrew /
-Russian: `שם / גיל / בן 25 / возраст / лет`) · PDF/screenshot attach with *Attach only* or
-*Attach + parse*, file always kept · guided voice entry · audio profile with transcript ·
-person photo separate from profile screenshot · age derived from text · contact name filled
-from a matching shadchan by phone.
+Research on older and non-technical users (Nielsen Norman Group) is consistent: everyday words,
+never system words.
 
-### Organizing
-Checkbox selection kept across tabs · tags · religious level and details · quick flags
-(divorced, with kids, kohen, kosher for kohen, baal teshuvah, watches movies, prays 3×
-daily, smokes) · languages · body type · looking for + to what age · talked by phone / met in
-person with notes · waiting for reply · call today / tomorrow reminders on shadchanim ·
-shadchan referral grouping · linked shadchan / linked profiles.
-
-### Sending
-One message per profile, one tap each, never bundled · one profile → several shadchanim ·
-any recipient (saved, typed, or chosen inside WhatsApp) · Make Match → shadchan or either
-side's contact person with a prepared message · share a shadchan's contact card ·
-**PDF-first** with text fallback · photo as an optional Yes/No second step · **language filter
-by line** (English / Hebrew / Russian) · WhatsApp, SMS, Email, Copy · `whatsapp://` on Android so
-you return to the app · **logged before handing off**.
-
-### Tracking
-History with WhatsApp-style in/out bubbles, text and audio notes · add received reply ·
-post-call popup (answered Yes/No, note) · last-call banner · added date · delete an entry.
-
-### Data and tools
-ZIP backup · email backup as `.txt` · restore both · on-device translation that never
-replaces the original · feature-request link · version badge.
-
-### Standing preferences
-Call → Email → WhatsApp → SMS · explicit **Yes / No**, never an X · waiting yellow / inactive
-gray · **ב״ה above Edit** · Girl photo left of Edit, girl list photos click-only · Israeli
-numbers local, WhatsApp international, +1 and others untouched · PeerMatch's detail order ·
-**free options only** · reminders never chase singles · basic phones (Call/SMS only) supported.
+| Say | Never say |
+|---|---|
+| People | contacts, records, entities, leads |
+| Idea | suggestion object, match, lead, opportunity, pipeline |
+| Status | stage |
+| Next step | task, follow-up item, reminder object |
+| Waiting for an answer | pending, awaiting response |
+| Where they came from | source, lead source, attribution |
+| Share | export, send via channel |
+| Resume | attachment |
+| Backup / Restore | export / import database |
+| Categories (shown by their names: *Age*, *Religious level*…) | tags, facets, metadata |
 
 ---
 
-## 5. The data model
+## 5. Data model
 
 ```
-   INBOX ITEM ──file──▶ becomes / attaches to any of:
-
-   ME (single mode)          CARD (a single)            CONTACT (shadchan, contact
-   profile versions ──sent──▶ …                         person, reference, parent)
-          │                        │                         ▲
-          │                        ▼                         │
-          └──────────────▶ SUGGESTION / OFFER ◀──suggested by┘
-                           (me ↔ her in single mode,
-                            guy ↔ girl in shadchan mode)
-
-   ACTIVITY  one timeline entry, linked to every record it involves (shown in each, deleted once)
-   TASK      a due date on a contact, offer/suggestion, or "update my profile" — never chases a single
-   LIST      smart (saved categories, updates itself) or manual (hand-picked); own keep-in-touch interval
-   CATEGORY  the shared, editable chip vocabulary used by contacts, cards and my profile
-   FILE      photo / PDF / audio stored once, referenced by id
+                         ┌─────────────────────────────┐
+   INBOX ITEM ─file───▶  │ PERSON  (one per human)     │ roles: me · single · shadchan ·
+   (anything captured,   │  profile, photos, resume,   │ contact person · reference · friend
+    never overwritten)   │  categories, where they came│
+                         │  from, next step, lists     │
+                         └──────┬──────────────┬───────┘
+                                │ two people   │ "contact people", "referred by"
+                                ▼              │  (links between persons)
+                         ┌──────────────┐      │
+                         │ IDEA         │◀─────┘ suggested by (a person or a site)
+                         │ status, each │
+                         │ side's answer│
+                         └──────────────┘
+   ACTIVITY  one timeline entry (note, call, message in/out, profile sent/received, status
+             change, met in person) linked to every person and idea involved — shown in each
+             timeline, deleted once
+   FILE      photo / PDF / audio stored once; referenced by id
+   LIST      saved search or hand-picked group of people; optional keep-in-touch interval
+   CATEGORY  the shared, editable chip vocabulary (private ones locked)
 ```
 
-- **Inbox item** — received when, from which channel, raw text / files / audio + transcript,
-  what the app detected, status (new / filed / dismissed), what it was filed as. Never lost.
-- **Me** (single mode) — the owner's own profile, as **versions** (text, PDF, photos, facts,
-  date, what changed) + pending-update checklist.
-- **Card** — a single: name + Hebrew/Russian spellings, **age with its date** (or date of
-  birth), city, profile text **verbatim**, looking for, all PeerMatch flags and fields,
-  photos, resume files, audio, contact people, references, **categories** (§3.4, many worked
-  out automatically), **source** (who, when, how),
-  status (active / on hold / dating / engaged / married / not available), untouched copy of
-  any imported PeerMatch record.
-- **Contact** — name, **roles** (shadchan, contact person, reference, parent — one person,
-  one record), several phones (mobile / landline), email, city, communities, languages,
-  **categories** (the shared set, §3.4), **where they came from** (+ referred by, linked),
-  favorite, lists, keep-in-touch interval, follow-up, waiting, notes.
-- **Suggestion / Offer** — the two sides (in single mode one side is *me*; the other side
-  may be a light card created from the offer text), who suggested it (several allowed,
-  first credited), stage, each side's answer with date, why it ended, dates list,
-  references, follow-up.
-- **Submission** — what was sent (card or *my profile version*), to whom, when, how, which
-  languages / PDF / photo. Powers "who has my profile" and repeat-send warnings.
-- **Activity** — one record with links (PeerMatch stored a shared event twice and needed
-  `shareLinkId`, fingerprints and tombstones to keep the copies in sync; this removes that).
-- **Source** — where an offer or card came from: a shadchan (a Contact), a **site**
-  (SawYouAtSinai, ChabadMatch, BasheretNow, FindYourBashert, …), a site's matchmaker, a friend,
-  or yourself. Cards carry **site profile numbers / links** per site (`{site, profileId, url}`),
-  the strongest duplicate signal there is.
+**Person** — name (+ other spellings), gender, **roles**, **age with the date it was true** (or
+date of birth → current age always right), city, phone(s) (mobile/landline), email,
+**profile** (text verbatim + **versions** with dates), **Resume** files, **Photos** (re-encoded,
+§12), **Looking for** + **age range sought**, **categories**, **contact people** (links),
+**where they came from** (+ referred by, date added), **site profile numbers** per dating site,
+**next step**, favorite, lists, status (for singles: available · on hold · dating · engaged ·
+married), notes, untouched copy of any imported PeerMatch record.
+*Derived, never typed:* last contact, waiting since, talked by phone, who has their profile,
+ideas they're part of; for shadchanim, the ideas they sent you and how useful they've been.
 
-### 5.1 Importing PeerMatch
-- **Shadchanim** → Contacts (role *shadchan*), with their full history, reminders, waiting
-  state and referral links.
-- **Girls** → Girl cards (shadchan mode). Because some were suggested **to you**, the import
-  ends with one quick screen: every girl with a **Yes / No — "was she suggested to me?"**
-  (pre-ticked where her history makes it likely, e.g. an incoming WhatsApp from a shadchan).
-  Yes → she also gets an Offer in single mode. This can be changed later per card.
-- **Guys** → Guy cards (your friends / people you match).
-- **History, photos, PDFs, audio** → Activities and Files, with their **real original dates**.
-- Every record also keeps an **untouched copy** of its PeerMatch fields.
-- Import can be repeated; records already imported are recognized, not duplicated.
+**Idea** — the two people (one may be *me*; the other may be a light record made from the
+message), **suggested by** (one or more persons or sites; first one credited), **status**
+(new · looking into · yes / no / maybe later · waiting for the other side · dating · paused ·
+engaged · ended), **each side's answer** with date, **why it ended** (who, reason chips + note),
+dates, references asked (+ what they said), next step, notes. **Notes about the idea stay on the
+idea**; notes about a person stay on the person.
+
+**Activity** — when, kind, channel, text/audio, links; for *Sent profile* also which version,
+which files, which languages. Status changes are recorded automatically.
+
+**Inbox item** — received when, from which channel, raw text/files/audio + transcript, what was
+detected, status (new · filed · dismissed), what it became.
 
 ---
 
-## 6. What dedicated shidduch software teaches
+## 6. Navigation and screens
 
-- **MyShadchan** (open-source parent/single-side CRM; its full product spec was read):
-  - an **Inbox distinct from the pipeline** — nothing lands in a decision state by itself;
-  - an optional **quick-link step at capture** ("which shadchan? which offer?") that is
-    **one-tap skippable**, never a blocking form;
-  - **non-resume messages file as notes** on a shadchan or offer;
-  - the key feature: on capture, **check against every past suggestion and dating
-    history** on name + parents + school + shul + location, across **Hebrew ↔ English**,
-    **never name-only**, **never auto-merge**; age is too unreliable to match on;
-  - triage *New → Look into → Not sure → For sure not*, then *Yes / Unsure / No* — a gut
-    no is kept distinct from a considered no;
-  - references as reusable contacts with call status and "what they said";
-  - reminders on a shadchan, suggestion or reference;
-  - per-shadchan **productivity**: offers → how many progressed → how many led to dates;
-  - the single's view is **calm**: only live offers, never the pile of rejections.
-- **shadchan.im**: "every suggestion, **what came back**, and **what's due next**."
-- **ZivugTech**: stages you move a suggestion through; "combo tags and filters".
-- **Shadchan Pro**: criteria search, **side-by-side compare**, suggestion status.
-- **SawYouAtSinai**: each side accepts or declines; a response window; **never the same
-  pair twice**; statuses *spoke on phone → first date → dating exclusively → engaged*.
-- **ZUUG**: boy's side is asked first.
-- **Between Carpools** (parents' spreadsheet): date mentioned, status, **reason**.
+### 6.1 Modes — challenged, kept, made light
+The brief warned against modes unless research supports them. It does, narrowly: every product
+found serves **one side** — MyShadchan is parent/single-side only; ZivugTech and Shadchan Pro are
+shadchan-side only — because the two sides need **different first screens and lists**. A single
+should not wade through *Guys / Girls / ideas between others*. But the data is identical, so a
+mode is only **which tabs show**. First run asks *"Who is this for?"* — **Me (I'm single)** ·
+**People I help** · **Both**. Changeable any time; nothing is lost.
 
-Where ZivugBase differs: MyShadchan relies on a cloud server (email-in address, paid AI
-reading). With **no cloud**, ZivugBase replaces email-in with Share / Paste and paid AI with
-the on-phone trilingual parser — and keeps PeerMatch's sending speed, which none of them have.
-
----
-
-## 7. What went wrong structurally in PeerMatch, and the rebuild rule for each
-
-Measured on v131 (75 live files, ~600 KB):
-
-| Problem | Evidence | Rebuild rule |
+| Me | People I help | Both |
 |---|---|---|
-| Many owners for one job | **22 files** open WhatsApp/SMS/email/share; 4 WhatsApp queues bridged by a global `localStorage` patch | **One send service**, one queue |
-| Layers fighting layers | **33 files** re-wrap `openP/openS/renderP/renderS`; **56 MutationObservers**; fixes that never ran (v111–v115) | Each screen rendered from data by **one** component; no file patches another's screen |
-| One event stored twice | share history mirrored into two records, then reconciled (v100, v127) | **One Activity with links** |
-| No suggestion object | Make Match writes text into 3 histories | **Suggestion/Offer** is a real object |
-| Whole database in one row | every `save()` rewrites `kv['state']` including photos/PDFs/audio | **Real tables**; save only what changed |
-| **Data can be evicted** | `navigator.storage.persist()` never called | Request persistent storage; show status on Home |
-| **Share-in overwrites** | every share stored under the single key `'pending'`; a 2nd share erases the 1st | **Inbox queue** |
-| Age goes stale | age stored as a bare number | age + the date it was true |
-| CDN dependencies | PDF.js / Tesseract loaded from public CDNs NetSpark can block | **Self-host everything** |
-| Bugs found only on the phone | no automated tests | **Tests gate every deploy** |
+| **Home · Ideas · People · Me** | **Home · Ideas · People** | **Home · Ideas · People · Me** |
+| Ideas = ideas for me | Ideas = ideas between people | Ideas has chips *For me · For others* |
+| People opens on *Shadchanim* | People opens on *Singles* | People has chips |
+
+**People** always has chips across the top — *Shadchanim · Girls · Guys · Everyone* — one tab
+instead of three. Small bottom tabs, with words.
+
+### 6.2 Home — "what do I do now?"
+1. **Inbox** — *"4 new items — file them"* (only when there are any).
+2. **Today** — one list, most urgent first. Each row: who, **why** (*"Call — planned for today"*,
+   *"No answer in 6 days"*, *"Check in — 45 days"*, *"Her side's answer is due"*, *"Update your
+   profile: 3 changes"*), and one tap: **Done · Snooze · Call · WhatsApp**.
+3. **Going on now** — ideas being looked into or dating.
+4. **Recently added.**
+5. **Backup line** — *"Last backup: 9 days ago · Back up now"* (yellow when overdue).
+6. **Capture bar**, fixed at the bottom where the thumb is: **Paste · Speak · Photo · +**
+Settings (mode, backup, restore, import, storage, about) sit behind one ⚙ at the top — Data is
+not a tab.
+
+### 6.3 The person screen — the whole state on one screen
+Modelled on the medical **patient banner**: the facts that prevent mistakes are always at the top,
+in a fixed place.
+1. **Banner**: photo/initials · name · current age · city · role chips · ⭐ · **Edit** (ב״ה above).
+2. **Where things stand**: status · waiting since · next step · last contact (one line; tap to change).
+3. **Action row**: **Call · Email · WhatsApp · SMS** (owner's order) · **Share** — only the ones
+   with a number/address.
+4. **Profile** (text, or the resume) → **Looking for** / age range → **Resume & Photos**.
+5. Collapsed, each with a count: **Ideas (3)** · **Has their profile (7)** · **Contact people (2)**
+   · **Categories** · **Where they came from** · **Timeline (41)** · **Notes**.
+6. Added date at the bottom.
+For a shadchan the same screen shows *Ideas they sent you*, *Has your profile (version)*,
+*Categories they handle*, *Where they came from*.
+**Never more than two taps** from any person to: calling them, sharing their profile, their last
+conversation, their next step.
+
+### 6.4 Ideas
+Chips: *Active · Looking into · Waiting · Dating · Went out · Declined · Contacted on a site ·
+All*, plus *by who suggested it*. Row: *Her ↔ Me* or *Him ↔ Her* · who suggested · status ·
+whose answer is pending and for how long. Idea screen: **both people side by side** (this is also
+the Compare view) · each side's answer with **Yes / No** · dates · references · why it ended ·
+timeline.
+
+### 6.5 Me (single mode)
+Your profile and its **versions** · **Pending updates** (filled from captured requests) · **Has
+your profile**: every shadchan, which version, when — outdated ones flagged · **Share** ·
+**"Who should have it?"** (§9).
+
+### 6.6 Search — in the top bar of every screen
+Goal: **find the right person in 2–3 seconds** — not a search engine.
+- **As you type**: people, ideas, notes and the Inbox; most recently touched first; forgiving of
+  spelling.
+- **Words become filters automatically**, shown as removable chips: a number → *age ≈ 30*; a known
+  city/region → *Jerusalem*; *guy/girl* → gender; a shadchan's name → *from Mrs. Katz*;
+  *last year / this month* → date added; *waiting / dating…* → status. So *"jerusalem 30 last
+  year"* finds "that guy from Jerusalem, around 30, someone gave me last year".
+- **Recent searches** under the box; any search can be **saved as a list** in one tap.
+- No separate advanced-search screen — the chips are the filters. No AI search, no query syntax.
+
+### 6.7 Desktop
+The same app. On a wide screen it becomes **two panes** (list left, person right) with a few
+keyboard shortcuts (`/` search, `n` new). **Stated plainly:** with no cloud, the computer has its
+**own copy**; moving data between phone and computer is **backup → restore**.
 
 ---
 
-## 8. Features by priority
+## 7. The share flow — the only way anything is sent
 
-**K** = kept from PeerMatch · **N** = new
-
-### Must have
-1. **N** Inbox: Share-in queue, Paste (with WhatsApp sender detection), Voice note with
-   transcript, Photo, Add from contacts; nothing ever overwritten.
-2. **N** Automatic detection, extraction (EN/HE/RU) and one-tap filing; triage screen.
-3. **N** Duplicate / "already suggested" / "already went out" / **"already contacted on a
-   site"** warnings.
-3a. **N** **Sites as sources** + **Paste a list** (copy a site's list or share screenshots →
-   table → one status for all) + site profile numbers.
-4. **N** Single mode: Offers pipeline with stages, several suggesters, follow-ups.
-5. **N** Single mode: My profile with versions, "who has it", update checklist, send updates.
-6. **N** Shadchanim book: keep-in-touch intervals, has-my-profile, offers from them;
-   **shared categories** (chips, private ones locked), **where they came from** + referral
-   tree, favorites, A–Z index, **bulk import** from phone contacts / `.vcf` / WhatsApp group,
-   **bulk tagging** and the **tagging sprint**.
-6a. **N** **Smart and manual lists**, each with its own keep-in-touch interval;
-   **"Who should have my profile?"** coverage.
-7. **N** Home with capture bar, Inbox, action items, recently added, data section; mode switch.
-8. **N** Persistent storage + backup reminder. Age that stays correct.
-9. **K** The one send service: WhatsApp / SMS / Email / Copy, PDF-first, photo step,
-   language filter, `whatsapp://`, logged first.
-10. **K** Notes, audio notes, post-call popup, waiting, call reminders, history delete.
-11. **K** Backup ZIP + email TXT + restore; **import PeerMatch backups**.
-12. **N** Long-press icon shortcuts: *Voice note · Paste · New offer*.
-
-### Should have
-13. **N/K** Shadchan mode: Guys / Girls / Shidduchim / Lists / Find matches / Sent-to
-    (everything in §3.2 and §4).
-14. **N** References with call status and notes.
-15. **N** Shadchan stats (offers, progressed, led to dates).
-16. **K** WhatsApp chat-export import.
-17. **N** Message templates (intro, sending profile, follow-up) in English / Hebrew / Russian.
-18. **N** App text in **Hebrew (right-to-left) and Russian** as well as English, for "anyone".
-19. **N** Password-protected backups (the email `.txt` is readable by anyone today) and an
-    optional app PIN.
-20. **K** Guided voice, audio profile transcript, on-device translation.
-
-### Later / optional
-21. **N** Optional Android add-on (§9).
-22. **N** "Remind me" through the phone's calendar — a free way to get a reminder that
-    rings while the app is closed, with no install.
-23. **N** Experiment: an AI model running inside the browser to fill fields from messy text
-    (see §10) — only if it proves good enough in Hebrew and Russian.
-24. **N** Export a list as a printable page.
+**What** (a person's profile, your profile, an idea) → **To whom** (search or recent; for a
+profile, **suggested recipients**: shadchanim who handle this kind of single and don't have it
+yet) → **How** (WhatsApp · SMS · Email · Copy) → **preview of exactly what goes out** → send.
+- **PDF-first**: a resume PDF is sent as the PDF; if it's removed, the text profile is used
+  automatically. OCR'd text never replaces the PDF.
+- **Photo** as an optional Yes/No second step.
+- **Language lines** (English/Hebrew/Russian) chosen at send time.
+- **Looking for** only if ticked in the preview (unticked by default, as in PeerMatch; remembered
+  per person). **Age range sought** is never shared.
+- **Built only from shareable fields** (profile, resume, photos, chosen contact person). Notes,
+  categories, timeline, where they came from and 🔒 categories **cannot** go out.
+- Several recipients: **one message each, one tap each**, never bundled — a web page cannot
+  automate WhatsApp, so this is the minimum (the add-on can remove the chat-picking step).
+- Android uses `whatsapp://` so you return to ZivugBase, not a browser page.
+- Recorded before leaving as *sending*; on return **"Sent? Yes / No"** (No removes it). Sending
+  starts **waiting** automatically.
 
 ---
 
-## 9. The optional Android add-on — only what's really worth installing
+## 8. Capture
 
-A web app **cannot**, on any phone: read incoming WhatsApp/SMS/email notifications; know that
-a call just ended (or whether it was answered, or who called you); ring a reminder while the
-app is closed; send a photo or PDF **straight into one chosen WhatsApp chat**.
+### 8.1 Principles
+One gesture to capture · capture now, file later (Inbox, never overwritten) · the original is the
+record · the app proposes, you tap · file a batch in a minute (one item per screen, likely action
+highlighted).
 
-Ranked by how much typing and chasing each one removes:
-1. **Automatic capture** of WhatsApp, SMS and email notifications from **known contacts**
-   into the Inbox — zero taps. (Limits: only what the notification shows — text, not the
-   attached PDF; nothing if you were already inside that chat.)
-2. **After every call** with a known contact (incoming too): *"Anything to note from your
-   call with Rabbi Cohen?"* with a voice-note button.
-3. **Real reminder notifications** for calls due, check-ins and follow-ups.
-4. **Send a photo / PDF directly into one chosen WhatsApp chat** (undocumented WhatsApp
-   feature — may stop working).
+### 8.2 Channels with no install
 
-How: the same app wrapped with **Capacitor** (free), built into an APK by GitHub Actions
-(already proven: PeerMatch's signed 1.0 APK built there on Sep 14). You already started this —
-`match/android` has a WhatsApp notification listener, and the Sep 16
-`test/whatsapp-photo-recipient` branch tried #4 (its build failed, so it was never answered).
-**First a one-day test APK** proving #1 and #4 on your phone and that NetSpark allows the
-install. The web app never depends on the add-on.
+| Where it is | How it gets in | Taps | With the add-on |
+|---|---|---|---|
+| WhatsApp message / PDF / photo / voice note / contact | Select → **Share → ZivugBase** | 2–3 | auto-captured from notifications |
+| WhatsApp, keeping who sent it | Select → **Copy** → ZivugBase → **Paste** (copying several messages includes each sender's name and time) | 3–4 | same |
+| Email text | Select all → Share (or Copy → Paste) | 3–4 | email notifications captured as a pointer |
+| Email attachment | Tap attachment → Share | 2 | — |
+| SMS | Select → Share, or Copy → Paste | 2–3 | auto-captured |
+| A phone call | After hanging up: long-press the icon → **Speak** → say it | 2 + speaking | popup after every call |
+| Paper / screenshot | **Photo** → text read on the phone | 2 | — |
+| Phone contacts | **Add from contacts** (tick many at once) | 2+ | — |
+| A dating site's list | **Paste a list** (§8.5) | 3–4 | — |
+| A spreadsheet | **CSV import** with a column preview | 3–4 | — |
+
+To appear in Android's Share menu the web app must be **added to the home screen** (one tap in
+Chrome; no app store). On iPhone, Paste, Speak and Photo work; sharing into the app does not.
+
+### 8.3 What the app does with each item
+Detects the kind (profile/idea · contact · "call…/send…" · profile-update request · reply/note) →
+extracts in English/Hebrew/Russian (name, age with its date, city, phones, emails, parents, school,
+who sent it, dates) → links and warns (*"From Mrs. Katz"*, *"⚠ suggested by Mr. Stein on May 3 —
+you said No (age)"*, *"⚠ you went out in 2025"*, *"⚠ contacted on ChabadMatch"*) → offers one-tap
+actions (*New idea from Mrs. Katz · Add to existing idea · New shadchan: Rabbi Cohen · Call him
+today/tomorrow · Update my profile · Note on … · Dismiss*).
+
+### 8.4 The owner's four examples
+1. **Idea by email** → Select all → Share → name/age/city filled in, "from which shadchan?" with
+   recent ones first → 1 tap → saved, repeats flagged.
+2. **Idea by WhatsApp** → Share; if *copied*, the sender is recognized and nothing is asked.
+3. **"Call this shadchan, 052-…" on the phone** → Speak → *New shadchan + next step: call today* →
+   1 tap.
+4. **"Send an updated profile with these new items"** → filed as **Pending updates** on *Me*;
+   after updating, *"11 shadchanim have an older version — share the new one?"*
+
+### 8.5 Dating sites
+Each site is a **source**. **Paste a list**: select all + copy a site's list (or share
+screenshots) → a table of the people found → untick mistakes → one status for all (*Contacted on
+ChabadMatch — Sep 2026*, *Declined on SawYouAtSinai*…). A one-time **sample per site** tunes the
+reader to its layout; a typed quick list (`Chaya 26 Crown Heights`) always works. Repeat warnings
+are *certain* (same site profile number/link), *likely* (same name in any spelling + age + city)
+or *possible* (age + city only, for entries without a name); one tap confirms "same person".
+Site email alerts can be shared in, and the site is recognized as the source.
 
 ---
 
-## 10. Technology (all free)
+## 9. Organizing hundreds of shadchanim
+
+- **One shared set of categories** for people and shadchanim: age range, religious level,
+  background, marital status, work/learning, region, languages, 🔒 appearance, 🔒 special
+  situations; for shadchanim also *how they work* and *reach them by*. Tap chips; the owner can
+  add, rename, merge or hide options. 🔒 = never sent, can be hidden entirely.
+- **"Who should have my profile?"** / **"Who should get this profile?"** — computed by matching
+  categories, ranked by how useful each shadchan has been.
+- **Where they came from** — referred by a person (linked, forming a referral tree) · friend ·
+  family · internet search · a site's shadchan list · WhatsApp group · organization · event · ad ·
+  already knew them · other — plus date and note → *which sources give useful shadchanim*.
+- **Lists** (saved search or hand-picked), each with an optional **keep-in-touch interval**.
+- Phone-book habits: **A–Z index**, ⭐ favorites on top, recent, group by letter / region /
+  category / source, merge duplicates.
+- Hundreds in without typing: **bulk import** (contact picker, `.vcf`, WhatsApp group export, CSV)
+  → table → *"all shadchanim, from WhatsApp group X"*; **bulk tagging**; **tagging sprint** (one per
+  screen, tap chips, next); **suggested categories** from the ideas they've sent you.
+- **Usefulness** per shadchan, list and source: ideas sent → looked into → dated; reply speed.
+
+---
+
+## 10. Follow-ups — deliberately small
+
+Answers one question: **"Who do I need to deal with today?"**
+- **Next step** on a person or idea: *what* + *when* (Today · Tomorrow · Next week · a date).
+  **Snooze** from Today. Done clears it.
+- **Waiting** is automatic (§3.1). After N days with no reply (default 5, changeable) it appears in
+  Today as *"No answer in 6 days"*.
+- **Keep in touch** (shadchanim): every N days per person or per list; any contact moves the next
+  check-in forward by itself.
+- **Not included:** recurring tasks, sub-tasks, priorities, projects, a calendar.
+- Reminders show when the app is open (a web limit). Two optional ways past it: **"Add to my
+  calendar"** (the phone's calendar rings) or the Android add-on.
+- Singles are never nagged: next steps go on shadchanim and ideas, not on chasing a single.
+
+---
+
+## 11. Backup and restore
+
+**Findings.** From a web app, Android Chrome can share only certain file types — Chromium's list
+includes `.pdf`, `.txt`, `.html`, images, audio and video, **not `.zip`**. That is why PeerMatch
+wraps the ZIP as base64 inside a `.txt` (a third larger, and gibberish if opened). Gmail
+attachments are limited to 25 MB. No web API can back up in the background.
+
+**Design.**
+- **Save to phone/computer**: a real ZIP (unchanged).
+- **Email / Drive backup as a PDF** instead of a `.txt`. Page 1 is a readable cover (*"ZivugBase
+  backup · 24 Sep 2026 · 312 people · keep private · to restore: open ZivugBase → Restore"*); the
+  backup rides inside the PDF as raw bytes — **no base64, so about a quarter smaller** than today's
+  `.txt`, which also helps stay under Gmail's 25 MB. Needs an on-phone test that Gmail and Drive
+  keep it byte-exact; if not, the `.txt` stays. Old `.zip` and `.txt` backups (PeerMatch or
+  ZivugBase) always restore.
+- **Encrypted with a backup password** (key stretching per OWASP's recommendation, AES encryption
+  built into the browser). Base64 is not encryption: anyone with a PeerMatch `.txt` backup can
+  read it. The password is set once and remembered on this phone, so backing up stays one tap;
+  restoring on a new phone asks for it. **Accepted knowingly:** a forgotten password means an
+  unreadable backup — mitigated by a one-page **recovery sheet** to print or photograph.
+- **Reminders, not background jobs**: the Home backup line turns yellow after 7 days with changes
+  since the last backup; one tap backs up.
+- **Big backups**: share to **Google Drive** from the same share sheet (no 25 MB limit); the app
+  warns before a backup would be too big for email.
+- **Restore** is the first choice on a fresh install (§15), shows what's in the file before
+  replacing anything, and changes nothing if it fails.
+
+---
+
+## 12. Privacy and security
+
+**Three different things, never confused:**
+- **Privacy** — the data doesn't leave: no server, no accounts, no analytics, no third-party
+  scripts, no CDNs. The only ways out are the share flow and backups, both started by you.
+- **Security** — protection even if data leaves or the phone is taken: encrypted backups; the
+  phone's lock screen and device encryption for a lost phone.
+- **Obscurity** — merely hard to read (base64, hidden screens). Never presented as protection.
+
+| Risk | Protection |
+|---|---|
+| Someone picks up the unlocked phone | Optional **app PIN**, honestly labelled a privacy screen, not encryption |
+| Phone lost or stolen | Android lock screen + device encryption; a recent **encrypted** backup to restore |
+| Backup file forwarded, or email account hacked | **Encrypted backups** |
+| Private notes sent to a shadchan by mistake | Outgoing text built only from shareable fields; **preview before sending**; 🔒 fields can't be selected |
+| A photo reveals where it was taken | Photos **re-encoded when saved**, removing hidden location data. Resume **PDFs kept untouched** — sent exactly as received |
+| Browser clears the data | **Persistent storage** requested; status shown in ⚙; backups |
+| Storage full / a save fails | Checked before big imports; a failed save is shown at once with "back up now"; never silent |
+| Deleting a person | Gone from lists at once, with Undo; kept 30 days in Recently deleted; **Delete forever** available; their files deleted with them. Earlier backups still contain them — said plainly |
+| Voice transcription | Chrome may send audio to Google when on-phone recognition isn't available (owner accepted) |
+
+Field tiers: **Shareable** (profile, resume, photos, chosen contact person, optionally *looking
+for*) · **Internal** (notes, timeline, categories, where they came from, age range sought,
+references, ideas) · **🔒 Private** (appearance, special situations).
+
+---
+
+## 13. Mobile, accessibility and older users
+
+- **Thumb zone**: about half of people use a phone one-handed and the top third is hard to reach
+  (Hoober), so the capture bar, main buttons and form Save/Cancel sit at the bottom; destructive
+  actions are never where the thumb rests.
+- **Text**: 16 px base, **follows the phone's text-size setting**; body contrast aimed at **7:1**
+  (NN/g's recommendation for older adults).
+- **Targets**: at least **48 × 48 px**, with space between neighbours.
+- **Words on buttons**; an icon only *with* a word.
+- **No hidden-only actions**: every long-press shortcut or swipe also exists as a visible button.
+- **Forms**: short — a name or any one of text / resume / photo is enough; the right keyboard per
+  field; *More details* collapsed; **drafts** kept if the app closes.
+- **Phone numbers** anywhere in text are tappable → Call · WhatsApp · SMS (kept from PeerMatch).
+- **Kosher phones**: a person marked *calls only* is never offered WhatsApp.
+
+---
+
+## 14. Information density — what shows when
+
+| Always visible | One tap away | Two taps at most |
+|---|---|---|
+| Name, age, city, role · where things stand · contact buttons · profile or resume | timeline, ideas, who has the profile, categories, contact people, where they came from | editing any field, sharing, compare, an idea's history |
+
+Collapsed sections show a **count**; one main button per screen; **one sheet deep** (never a
+dialog on a dialog); list rows are two lines; nothing is shown twice.
+
+---
+
+## 15. First run and empty states
+
+No tutorial (NN/g: guidance in context works better than an up-front tutorial; the empty state is
+the teaching moment).
+- **0 people** — three big choices: **Restore a backup** · **Import from PeerMatch** · **Start
+  fresh**, and below them *"Try it: share any WhatsApp message to ZivugBase"* with a three-picture
+  how-to.
+- **1–10 people** — one-line hints where the action is (*"Tap Share to send this profile"*).
+- **About 20+** — filters and Lists appear.
+- **100+** — the A–Z index and search chips come forward.
+- Every empty list says what would fill it and has the button that does it.
+
+---
+
+## 16. Error recovery
+
+Every message answers: **what happened · what is safe · what to do next.**
+
+| Situation | Behaviour |
+|---|---|
+| Backup fails | "The backup wasn't created. Nothing on your phone changed. Try again, or save it to the phone instead of email." |
+| Share fails / you didn't send | On return: **Sent? Yes / No**; No removes the record |
+| A PDF/photo can't be read | The file is **kept**; "Couldn't read the text — type the name, or leave it" |
+| Accidental delete | **Undo**, or Recently deleted (30 days) → Restore |
+| Browser storage problem | Warning in ⚙ and on Home, with "Back up now" |
+| Import interrupted | Imports are **all or nothing**; safe to run again |
+| Same import twice | Already-imported records recognized, not duplicated |
+| Broken WhatsApp export | Shows what was understood and what was skipped; imports the good part only if you say so |
+| Half-filled form, app closed | Next time: "Continue adding Chaya?" |
+| Damaged backup | Checked completely **before** anything is replaced; current data untouched on failure |
+
+---
+
+## 17. Import and duplicates
+
+**Sources**: PeerMatch backups (ZIP/TXT) · ZivugBase backups · WhatsApp chat exports · phone
+contacts / `.vcf` · CSV spreadsheets (column-matching preview) · pasted text and lists · PDFs and
+photos · emails (via Share).
+
+**PeerMatch import**: shadchanim → Persons (role shadchan) with history, reminders and referral
+links · girls/guys → Persons (role single) · history and files with real dates · ends with the
+**"Was she suggested to me? Yes/No"** screen (pre-ticked where likely) · untouched legacy copy
+kept · repeatable without duplicating.
+
+**Duplicates**: signals — phone (strongest), site profile number, email, name across
+Hebrew/English/Russian spellings, parents, city, age (weak: resumes are unreliable on age).
+**Never merged silently.** A side-by-side merge screen picks each field; *"Not the same person"* is
+remembered so it isn't asked again.
+
+---
+
+## 18. AI — only where it truly saves work
+
+| Helps | How |
+|---|---|
+| Names, ages, phones, dates, cities out of messages | **Rules** — PeerMatch's trilingual parser, extended; no AI needed |
+| Text from PDFs and photos | PDF.js + Tesseract **on the phone**, self-hosted |
+| Suggested categories | Simple counts of what a shadchan has sent |
+| Duplicate detection | Rules + spelling-tolerant name matching |
+| Turning a long WhatsApp export into timeline entries | **Later experiment**: an AI model running inside Chrome (WebGPU) — one-time 300 MB–2 GB download, Hebrew/Russian quality unproven |
+
+**Never**: judging compatibility or scoring people · sending anything AI wrote without you reading
+it · auto-merging · rewriting the original profile · sending data to an online AI service.
+
+---
+
+## 19. What ZivugBase deliberately does not have
+
+Accounts and sign-in · cloud sync or any server · a public directory, profiles others can see,
+likes or any social feature · matching algorithms or compatibility scores · in-app chat (WhatsApp
+exists) · paid SMS/email/WhatsApp gateways · streaks, badges, gamification · notification spam ·
+charts and dashboards (a few plain counts only) · a form or field designer · a task manager ·
+drag-and-drop boards · revocable resume links and an email-in address (both need a server) ·
+analytics, trackers, third-party scripts, CDNs · location features · two ways to do the same thing.
+
+---
+
+## 20. Optional Android add-on
+
+Only for what a web app physically cannot do, most valuable first:
+1. **Automatic capture** of WhatsApp, SMS and email notifications from known people (text only; not
+   attachments; not if you were already inside that chat).
+2. **A popup after every call** with a known person, incoming ones too.
+3. **Reminders that ring** with the app closed.
+4. **A photo / PDF straight into one chosen WhatsApp chat** (undocumented WhatsApp behaviour — may
+   break).
+
+Same code wrapped with **Capacitor** (free), built by GitHub Actions (PeerMatch's signed APK built
+there on Sep 14; `match/android` already has a WhatsApp notification listener; the Sep 16
+`test/whatsapp-photo-recipient` experiment tried #4, but its build failed). **First a one-day test
+APK**, including whether NetSpark allows installing it. The web app never depends on it.
+
+---
+
+## 21. Workflows — taps and typing, PeerMatch today vs this design
+
+Estimates from reading PeerMatch's code, not measurements; WhatsApp's own taps included.
+
+| # | Workflow | PeerMatch today | ZivugBase | Main gain |
+|---|---|---|---|---|
+| A | Single receives a profile from a shadchan (WhatsApp) | ~5 taps, **types sender name + phone**, no repeat check, no status | ~4–5 taps, **no typing** (nothing asked if copied) | no typing; repeat warning; it's an idea with a status |
+| B | Single sends own profile to a shadchan | ~8 taps across 2 tabs; version not recorded | ~5–6 taps from *Me*; version recorded | "who has which version" |
+| C | Shadchan receives a new person | ~5 taps + typing the sender | ~4 taps, no typing | as A |
+| D | A WhatsApp conversation updates a person | find the shadchan, *Add received reply*, paste (~6 taps); not linked to the person | Copy → Paste (~5 taps); linked to the shadchan **and** the person | lands on the right people |
+| E | Who needs follow-up today | 3+ places (Calls badge, waiting counts per tab) | **0 taps** — Today on Home | one list |
+| F | "That guy from Jerusalem, ~30, got him last year" | text search, then open each to check age and date | 1 tap + "jerusalem 30 last year" | words become filters |
+| G | Compare two possible matches | open one, close, open the other | tick 2 → Compare | side by side |
+| H | One profile to several shadchanim | ~3 taps each + setup; recipients from memory | ~2 taps each + setup; **suggested recipients** | fewer taps; nobody forgotten |
+| I | Lost phone → new phone | only if a manual backup exists; readable by anyone | reminded backups; first screen offers Restore; encrypted | nothing forgotten or exposed |
+| J | Share a profile that has a PDF | PDF sent | PDF sent, with a preview | same |
+| K | PDF removed, share again | text sent | text sent | same |
+| L | Accidental delete | gone after a confirm | **Undo** or Recently deleted | recoverable |
+
+---
+
+## 22. Lessons carried over (condensed from earlier revisions)
+
+**PeerMatch features kept** (the behaviour, not the code): paste profile · share-in · WhatsApp chat
+import · trilingual parsing · PDF/screenshot with *Attach only / Attach + parse* · audio profile +
+transcript · age from text · contact name from a matching shadchan · checkbox selection across tabs
+· looking for + to what age · waiting · shadchan call reminders · referral links · one message per
+profile · several shadchanim · any recipient · share a shadchan's card · PDF-first · photo Yes/No ·
+language lines · `whatsapp://` · WhatsApp-style timeline · add received reply · post-call popup ·
+ZIP + email backup + restore · on-device translation · owner preferences (Call → Email → WhatsApp →
+SMS · Yes/No, never ✗ · waiting yellow · ב״ה above Edit · girl photo left of Edit, girl list photos
+click-only · Israeli numbers local, WhatsApp international · free only · basic phones supported).
+
+**PeerMatch structural lessons** (v131: 75 live files, ~600 KB): 22 files could send · 4 queues ·
+33 files re-wrap the render functions · 56 MutationObservers · fixes that never ran · events stored
+twice, then reconciled · the whole database in one row · **persistent storage never requested** ·
+**share-in overwrote itself** (one `'pending'` key) · ages go stale · CDN dependencies · no tests.
+
+**Shidduch software**: MyShadchan (Inbox kept apart from the pipeline; skippable quick-link at
+capture; multi-signal repeat detection across Hebrew↔English, never name-only, never auto-merge; a
+quick *no* kept apart from a considered *no*; references with call status; per-shadchan usefulness;
+a calm single's view) · shadchan.im ("what came back, what's due next") · ZivugTech (stages, combo
+filters) · Shadchan Pro (criteria search, compare) · SawYouAtSinai (two-sided answers, never the same
+pair twice) · ZUUG (boy's side first) · Between Carpools (date mentioned, status, reason).
+
+**Contact management**: Google Contacts (labels, not folders) · Monica ("how you met") · folk
+(groups with their own fields) · HubSpot (lists that update themselves vs fixed lists) · recruitment
+agencies (one vocabulary for candidates and clients; review tags periodically) · faceted
+classification (fixed options stop tag sprawl) · task apps (one *Today* view) · medical records (a
+fixed banner of the facts that prevent mistakes).
+
+---
+
+## 23. Technology (all free)
 
 | Part | Choice | Why |
 |---|---|---|
-| Language | **TypeScript** | Claude maintains this code; errors are caught when building, not on your phone |
-| UI | **Preact** + signals | ~4 KB, one component per screen — no file can patch another's screen |
-| Build / hosting | **Vite** → **GitHub Pages** via Actions | Static site, no server; live at `shiduchim.github.io/zivugbase` |
-| Database | **Dexie** (IndexedDB) | Real tables, indexes, versioned migrations, lists that update themselves |
-| Search | **MiniSearch** | Fast, typo-tolerant — helps with transliterated names |
-| PDF / OCR | **PDF.js + Tesseract**, self-hosted, English / Hebrew / Russian data | Loaded only when asked; same site, so NetSpark can't block a CDN |
-| Speech | Chrome speech recognition, **on-device when the phone supports it** | Otherwise Chrome may use Google's servers for the transcript — the same as PeerMatch's voice features today |
-| Tests | **Vitest + Playwright** | Parsers, phone rules, duplicate checks, backup round-trip, capture flows — **must pass before any deploy** |
-| Add-on (optional) | **Capacitor** APK | Same code |
-
-**No AI service.** Chrome's built-in model is desktop-only, and paid APIs are excluded.
-An AI model *can* run inside Chrome on many Android phones (WebGPU, Chrome 121+), but needs a
-one-time 300 MB–2 GB download and its Hebrew/Russian quality at that size is unproven — so it
-is a later experiment (#23), never a dependency. The rule-based trilingual parser is the default.
-
-### Data safety
-Separate site from PeerMatch → separate database; **PeerMatch is never touched**, and both run
-side by side until you're satisfied. ZivugBase imports PeerMatch backups at any time and keeps
-an untouched copy of every imported record. Persistent storage requested. Dates and history are
-never invented.
+| Language | TypeScript | errors caught when building, not on the phone |
+| UI | Preact + signals | ~4 KB; one component per screen |
+| Build / hosting | Vite → GitHub Pages via Actions | static, no server |
+| Database | Dexie (IndexedDB) | real tables, indexes, migrations, lists that update themselves |
+| Search | MiniSearch | fast, spelling-tolerant |
+| PDF / OCR | PDF.js + Tesseract, **self-hosted**, eng/heb/rus data | loaded only when asked; nothing from a CDN |
+| Encryption | Web Crypto (built into the browser) | no library needed |
+| Speech | Chrome speech recognition, on-device when available | owner accepted |
+| Tests | Vitest + Playwright | **must pass before any deploy** |
+| Add-on (optional) | Capacitor APK | same code |
 
 ---
 
-## 11. Build stages
+## 24. Build stages
 
-Single mode first — it is the owner's daily use, and PeerMatch keeps covering shadchan work
-until Stage 4. Every stage: deploy → you import your real PeerMatch backup → you test on the
-phone. Nothing is called device-verified until you test it.
+Each stage: deploy → the owner imports a real PeerMatch backup → tests on the phone. Nothing is
+called device-verified until the owner tests it. PeerMatch keeps running, untouched, until
+ZivugBase replaces it.
 
-| Stage | Delivers | You test |
-|---|---|---|
-| **1. Foundation + capture** | Tooling, tests, CI gate; database; PeerMatch import; backup/restore; Home with capture bar; **Inbox** (Share-in queue, Paste with WhatsApp sender detection, Voice note, Photo); detection + extraction; triage screen; Shadchanim book with **categories, where-they-came-from, favorites, A–Z, bulk import from contacts, bulk tagging, tagging sprint**; mode switch | Share 3 things in a row, paste a WhatsApp conversation, dictate a call note — all in the Inbox, nothing lost; import 50 shadchanim from your contacts and categorize them in one sitting |
-| **2. Single mode** | Smart + manual lists, **"Who should have my profile?"**; Offers pipeline, duplicate / already-went-out / already-contacted warnings, several suggesters, follow-ups; **sites as sources + Paste a list**; the PeerMatch "suggested to me?" screen; **My profile** with versions and "who has it"; the one send service | Paste your ChabadMatch list and mark it contacted; file an email idea and get warned it's a repeat; send your updated profile to everyone with the old one |
-| **3. Tracking** | Action items on Home, keep-in-touch intervals, post-call popup, references, dates log, shadchan stats, templates, calendar reminders | A week of real use |
-| **4. Shadchan mode** | Guys / Girls / Shidduchim, Make Match → Suggestion, Sent-to, filters, Lists, Find matches; full PeerMatch parity | Your PeerMatch data working in shadchan mode |
-| **5. Polish for anyone** | Hebrew + Russian app text, WhatsApp chat import, guided voice, translation, password-protected backups, PIN | Hand it to someone else |
-| **6. Optional add-on** | One-day test APK, then the add-on if it passes | Automatic capture of a shadchan's WhatsApp |
+| Stage | Delivers |
+|---|---|
+| **1. Foundation** | Tooling, tests, CI gate · data model (§5) · PeerMatch import + "suggested to me?" screen · backup/restore (ZIP, PDF email backup, encryption, reminders) · persistent storage · first run · modes and tabs · People with search chips, A–Z, favorites · person screen · Undo + Recently deleted · drafts · **basic Inbox** (share-in queue, Paste, Speak, Photo; file as a person or a note) |
+| **2. Smart capture + organizing** | Detection and extraction (EN/HE/RU), sender recognition from copied WhatsApp, repeat warnings + merge screen, one-per-screen triage · categories, where they came from, bulk import (contacts, `.vcf`), bulk tagging, tagging sprint · Lists |
+| **3. Ideas, Me, Share, Today** | Ideas (both modes) · dating sites + Paste a list · Me with versions, pending updates, who has it, "who should have it" · the share flow (PDF-first, preview, Sent? Yes/No) · Today with next steps, automatic waiting, keep-in-touch · post-call popup |
+| **4. Helping others, fully** | New idea from two people, Compare, suggested recipients, usefulness numbers, message templates, WhatsApp chat import, CSV import |
+| **5. Polish** | Desktop two-pane · app PIN · translation · accessibility pass · Hebrew/Russian app text when wanted |
+| **6. Optional add-on** | One-day test APK, then the add-on if it passes |
 
 ---
 
-## 12. Status of open questions
+## 25. Open decisions (the owner's answer is needed before Stage 1)
 
-Rev 2's three questions are answered (§1, rows 5–7). Remaining:
-1. **Go-ahead for Stage 1.**
-2. **One sample per site** (SawYouAtSinai, ChabadMatch, BasheretNow): a copied list page or a
-   screenshot, names removed if preferred, to tune *Paste a list* for that site. Needed by
-   Stage 2, not Stage 1.
-3. **One settings switch when Stage 1 is ready:** the new app has a build step, so GitHub Pages
-   must be set to deploy from **GitHub Actions** (Settings → Pages → Source). Until then the
-   old prototype keeps serving.
+1. **Encrypted backups by default?** Recommended **yes** for email/Drive backups, with a remembered
+   password and a printable recovery sheet. Trade-off: a forgotten password makes that backup
+   unreadable.
+2. **Remove guided voice** (field-by-field prompts) in favour of speak-freely-then-extract?
+   Recommended yes.
+3. **"Ideas"** as the one word for suggestions/offers/matches in both modes? Recommended yes.
+4. **"Looking for"** in outgoing profiles: unticked by default with a checkbox in the preview
+   (today's behaviour, made visible); *age range sought* never shared? Recommended yes.
+5. **Go-ahead for Stage 1.**
+
+Later (before Stage 3): **one sample per dating site** (a copied list page or a screenshot, names
+removed). One GitHub Pages settings switch when Stage 1 is ready.
 
 ---
 
 ## Sources
 
-- MyShadchan — https://github.com/dniasoff/myshadchan
-- MyShadchan product spec — https://github.com/dniasoff/myshadchan/blob/main/_bmad-output/planning-artifacts/prds/prd-myshadchan-2026-07-21/prd.md
-- shadchan.im — https://www.shadchan.im/
-- ZivugTech — https://www.zivugtech.org/
-- Shadchan Pro — https://www.shadchanpro.com/
-- SawYouAtSinai — https://en.wikipedia.org/wiki/SawYouAtSinai
-- ZUUG — https://zuug.app/
-- Google Contacts labels — https://support.google.com/contacts/answer/30970
-- Monica personal CRM — https://github.com/monicahq/monica
-- folk CRM groups and fields — https://help.folk.app/en/articles/9790806-folk-data-model
-- HubSpot active vs static lists — https://www.hublead.io/blog/hubspot-active-vs-static-list
-- Recruitment tagging vs custom fields — https://giighire.com/2026/08/10/custom-fields-vs-custom-tagging/
-- Faceted classification — https://www.hedden-information.com/faceted-classification-and-faceted-taxonomies/
-- Specialized shadchanim (special needs) — https://www.beineinu.org/special-needs/special-needs-shidduchim/641-shadchanim/2932-special-needs-shadchanim-israel
-- Hashkafa categories — https://en.wikipedia.org/wiki/Hashkafa
-- ChabadMatch FAQ — https://www.chabadmatch.com/about.php
-- BasheretNow — https://jewishjournal.com/community/327779/new-jewish-dating-app-basheret-allows-users-to-play-matchmaker-re-define-online-dating/
-- Between Carpools — https://betweencarpools.com/organize-keep-track-of-resumes/
-- Shidduch resume sections — https://shidduchim101.com/writing-shidduch-resumes/
-- WhatsApp copy includes sender and time — https://www.guidingtech.com/whatsapp-forward-tricks/
-- PWA shortcuts and share target — https://web.dev/learn/pwa/enhancements
-- Contact Picker API — https://developer.chrome.com/docs/capabilities/web-apis/contact-picker
-- On-device speech recognition — https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition/available_static
-- Persistent storage — https://web.dev/articles/persistent-storage
-- Notification Triggers — https://developer.chrome.com/docs/web-platform/notification-triggers
-- Chrome built-in AI — https://developer.chrome.com/docs/ai/prompt-api
-- WebLLM (AI in the browser) — https://github.com/mlc-ai/web-llm
-- WhatsApp `jid` share intent — https://medium.com/@mkcode0323/simplifying-image-and-text-sharing-via-whatsapp-from-your-android-app-0cc914b118c6
-- Capacitor Android builds in GitHub Actions — https://capgo.app/blog/automatic-capacitor-android-build-github-action/
-- NetSpark — https://www.netsparkmobile.com/en/application/
+Shidduch: [MyShadchan](https://github.com/dniasoff/myshadchan) ·
+[MyShadchan product spec](https://github.com/dniasoff/myshadchan/blob/main/_bmad-output/planning-artifacts/prds/prd-myshadchan-2026-07-21/prd.md) ·
+[shadchan.im](https://www.shadchan.im/) · [ZivugTech](https://www.zivugtech.org/) ·
+[Shadchan Pro](https://www.shadchanpro.com/) · [SawYouAtSinai](https://en.wikipedia.org/wiki/SawYouAtSinai) ·
+[ZUUG](https://zuug.app/) · [ChabadMatch FAQ](https://www.chabadmatch.com/about.php) ·
+[BasheretNow](https://jewishjournal.com/community/327779/new-jewish-dating-app-basheret-allows-users-to-play-matchmaker-re-define-online-dating/) ·
+[Between Carpools](https://betweencarpools.com/organize-keep-track-of-resumes/) ·
+[Shidduch resume sections](https://shidduchim101.com/writing-shidduch-resumes/) ·
+[Special-needs shadchanim](https://www.beineinu.org/special-needs/special-needs-shidduchim/641-shadchanim/2932-special-needs-shadchanim-israel) ·
+[Hashkafa](https://en.wikipedia.org/wiki/Hashkafa)
+
+Organizing contacts: [Google Contacts labels](https://support.google.com/contacts/answer/30970) ·
+[Monica](https://github.com/monicahq/monica) · [folk data model](https://help.folk.app/en/articles/9790806-folk-data-model) ·
+[HubSpot active vs static lists](https://www.hublead.io/blog/hubspot-active-vs-static-list) ·
+[Recruitment tags vs fields](https://giighire.com/2026/08/10/custom-fields-vs-custom-tagging/) ·
+[Faceted classification](https://www.hedden-information.com/faceted-classification-and-faceted-taxonomies/)
+
+Usability: [NN/g — older adults](https://www.nngroup.com/articles/usability-for-senior-citizens/) ·
+[NN/g — empty states](https://www.nngroup.com/articles/empty-state-interface-design/) ·
+[NN/g — confirmation dialogs](https://www.nngroup.com/articles/confirmation-dialog/) ·
+[Reversible actions (undo)](https://blog.logrocket.com/ux-design/ux-reversible-actions-framework/) ·
+[Thumb zone (Hoober)](https://www.smashingmagazine.com/2016/09/the-thumb-zone-designing-for-mobile-users/) ·
+[NHS patient banner](https://www.yumpu.com/en/document/view/34958203/patient-banner-for-clinical-systems-within-the-nhs-in-england)
+
+Platform: [Chromium's shareable file types](https://github.com/chromium/chromium/blob/main/chrome/browser/webshare/share_service_impl.cc) ·
+[Web Share](https://web.dev/articles/web-share) · [PWA shortcuts & share target](https://web.dev/learn/pwa/enhancements) ·
+[Contact Picker](https://developer.chrome.com/docs/capabilities/web-apis/contact-picker) ·
+[Persistent storage](https://web.dev/articles/persistent-storage) ·
+[On-device speech](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition/available_static) ·
+[Notification Triggers](https://developer.chrome.com/docs/web-platform/notification-triggers) ·
+[Chrome built-in AI](https://developer.chrome.com/docs/ai/prompt-api) · [WebLLM](https://github.com/mlc-ai/web-llm) ·
+[OWASP password storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html) ·
+[WhatsApp copy includes sender](https://www.guidingtech.com/whatsapp-forward-tricks/) ·
+[WhatsApp `jid` intent](https://medium.com/@mkcode0323/simplifying-image-and-text-sharing-via-whatsapp-from-your-android-app-0cc914b118c6) ·
+[Capacitor builds in Actions](https://capgo.app/blog/automatic-capacitor-android-build-github-action/) ·
+[NetSpark](https://www.netsparkmobile.com/en/application/)
